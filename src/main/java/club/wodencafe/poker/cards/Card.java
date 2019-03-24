@@ -1,7 +1,5 @@
 package club.wodencafe.poker.cards;
 
-import java.util.Comparator;
-
 public class Card implements Comparable<Card> {
 	private Suit suit;
 	private int value;

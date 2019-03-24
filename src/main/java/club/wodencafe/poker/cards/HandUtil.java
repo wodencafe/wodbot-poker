@@ -260,7 +260,7 @@ public class HandUtil {
 	private static final Collection<Integer> straight7 = Arrays.asList(7, 8, 9, 10, 11);
 	private static final Collection<Integer> straight8 = Arrays.asList(8, 9, 10, 11, 12);
 	private static final Collection<Integer> straight9 = Arrays.asList(9, 10, 11, 12, 13);
-	private static final Collection<Integer> straight10 = Arrays.asList(10, 11, 12, 13, 14);
+	private static final Collection<Integer> straight10 = Arrays.asList(10, 11, 12, 13, 1);
 	private static final Collection<Collection<Integer>> straights = new ArrayList<Collection<Integer>>(Arrays.asList(straight1,
 		straight2, straight3, straight4, straight5, straight6, straight7, straight8, straight9, straight10)) {{
 			Collections.reverse(this);

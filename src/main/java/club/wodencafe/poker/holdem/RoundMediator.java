@@ -9,11 +9,12 @@ import java.util.function.Consumer;
 import com.google.common.util.concurrent.AbstractScheduledService;
 
 import club.wodencafe.bot.WodData;
-import club.wodencafe.poker.Player;
+import club.wodencafe.data.Player;
+import club.wodencafe.poker.cards.Deck;
 import io.reactivex.subjects.PublishSubject;
 
 public class RoundMediator extends AbstractScheduledService implements AutoCloseable, Consumer<Command> {
-	private List<PlayerData> players = new ArrayList<>();
+	private List<PlayerRoundData> players = new ArrayList<>();
  	
     private PhaseManager phaseManager;
 
@@ -21,8 +22,12 @@ public class RoundMediator extends AbstractScheduledService implements AutoClose
 
 	private PublishSubject<Map.Entry<Player, String>> playerMessage = PublishSubject.create();
 	
+	private Deck deck;
+	
 	private RoundMediator() {
 		phaseManager = new PhaseManager();
+		
+		deck = Deck.generateDeck(false);
 	}
 	
 	public PhaseManager getPhaseManager() {
@@ -58,11 +63,34 @@ public class RoundMediator extends AbstractScheduledService implements AutoClose
 		CommandType commandType = command.getCommandType();
 		Phase phase = phaseManager.get();
 		Player player = command.getPlayer();
-		switch (phase) {
-			case AWAITING_PLAYERS: {
-				
+		
+		if (phase == Phase.AWAITING_PLAYERS) {
+			// TODO: Make sure the player has money
+			if (commandType == CommandType.DEAL) {
+				if (!isPlayerParticipating(player)) {
+					// TODO: Should the cards be shown to the player here?
+					PlayerRoundData data = new PlayerRoundData(player);
+					
+					players.add(data);
+				}
 			}
-			break;
 		}
+		else if (phase.isBetPhase() || phase == Phase.SHOWDOWN) {
+			if (phase.isBetPhase()) {
+				switch (commandType) {
+					
+				}
+			}
+			
+		
+		}
+	}
+	
+	private boolean isPlayerParticipating(Player player) {
+		return players
+			.stream()
+			.map(x -> x.get())
+			.map(x -> x.getIrcName())
+			.anyMatch(x -> x.equals(player.getIrcName()));
 	}
 }

@@ -4,14 +4,14 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.atomic.AtomicLong;
 
-import club.wodencafe.poker.Player;
+import club.wodencafe.data.Player;
 import club.wodencafe.poker.cards.Card;
 
-public class PlayerData implements AutoCloseable {
+public class PlayerRoundData implements AutoCloseable {
 	private Player player;
 	private AtomicLong totalBet = new AtomicLong();
 	private Collection<Card> cards = new ArrayList<>();
-	public PlayerData(Player player) {
+	public PlayerRoundData(Player player) {
 		this.player = player;
 	}
 	public Player get() {

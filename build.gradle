@@ -12,6 +12,12 @@ plugins {
 }
 
 dependencies {
+	// https://mvnrepository.com/artifact/org.hsqldb/hsqldb
+	testCompile group: 'org.hsqldb', name: 'hsqldb', version: '2.4.1'
+
+	// https://mvnrepository.com/artifact/org.hibernate/hibernate-core
+	compile group: 'org.hibernate', name: 'hibernate-core', version: '5.4.2.Final'
+
 	// https://mvnrepository.com/artifact/io.reactivex.rxjava2/rxjava
 	compile group: 'io.reactivex.rxjava2', name: 'rxjava', version: '2.2.7'
 	

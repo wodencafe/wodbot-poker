@@ -2,7 +2,7 @@ package club.wodencafe.poker.holdem;
 
 import java.util.Optional;
 
-import club.wodencafe.poker.Player;
+import club.wodencafe.data.Player;
 
 public class Command {
 	private CommandType commandType;
