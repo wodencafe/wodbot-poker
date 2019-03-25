@@ -4,11 +4,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class HandUtil {
@@ -16,8 +19,49 @@ public class HandUtil {
 	public static Collection<Card> getTwoPair(Collection<Card> cards) {
 
 		Set<Card> cardValues = getCardsSortedAceHigh(cards);
+
+		List<Card> topFiveCards = new ArrayList<>();
+
+		List<Card> cardValuesList = new ArrayList<>(cardValues);
+
+		Map<Card, Integer> cardValuesFound = new HashMap<>();
+
+		Set<Card> pairSet = new HashSet<>();
+
+		for (int x = 0; x < cardValuesList.size(); x++) {
+			Card card = cardValuesList.remove(x);
+
+			int cardValue = card.getValue();
+
+			if (!cardValuesFound.containsValue(cardValue)) {
+				cardValuesFound.put(card, cardValue);
+			} else {
+				for (Entry<Card, Integer> entry : cardValuesFound.entrySet()) {
+					if (Objects.equals(cardValue, entry.getValue())) {
+						pairSet.add(entry.getKey());
+						pairSet.add(card);
+						break;
+					}
+				}
+			}
+			if (pairSet.size() == 4) {
+				break;
+			}
+		}
+		if (pairSet.size() == 4) {
+			topFiveCards.addAll(pairSet);
+			
+			cardValuesList = new ArrayList<>(cardValues);
+			
+			cardValuesList.removeAll(pairSet);
+			
+			Card card = cardValuesList.iterator().next();
+			
+			topFiveCards.add(card);
+		}
 		
-		return null;
+		return topFiveCards;
+
 	}
 	
 	public static Collection<Card> getStraightFlush(Collection<Card> cards) {
