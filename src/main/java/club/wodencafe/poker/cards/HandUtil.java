@@ -1,6 +1,5 @@
 package club.wodencafe.poker.cards;
 
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -10,14 +9,23 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
+import club.wodencafe.poker.cards.hands.Hand;
+
 public class HandUtil {
 
+	public static Hand getHand(Collection<Card> cards) {
+		
+		
+		
+		return null;
+	}
 	public static Collection<Card> getRoyalFlush(Collection<Card> cards) {
 	
 
@@ -41,13 +49,33 @@ public class HandUtil {
 	}
 	public static Collection<Card> getQuads(Collection<Card> cards) {
 
-		Set<Card> cardValues = getCardsSortedAceHigh(cards);
 
-		List<Card> topFiveCards = new ArrayList<>();
+		return getDuplicates(cards, 4);
+	}
+	
+	private static Collection<Card> getAndRemoveJokers(Collection<Card> cards) {
+		List<Card> jokers = new ArrayList<>();
+
+		List<Runnable> runnables = new ArrayList<>();
+		
+		for (Card card : cards) {
+			if (card.getSuit() == Suit.JOKER) {
+				runnables.add(() -> cards.remove(card));
+				jokers.add(card);
+			}
+		}
+
+		for (Runnable runnable : runnables) {
+			runnable.run();
+		}
+		
+		return jokers;
+	}
+	public static Map<Integer, Collection<Card>> getCardGroups(Collection<Card> cards) {
 
 		Map<Integer, Collection<Card>> cardValuesFound = new HashMap<>();
 		
-		for (Card card : cardValues) {
+		for (Card card : cards) {
 
 			int cardValue = card.getValue();
 			
@@ -59,77 +87,62 @@ public class HandUtil {
             	cardValuesFound.put(cardValue, collection);
             } else {
             	
-            	collection.add(card);
-            	
-                if (collection.size() == 4) {
-                	break;
-                }
+            	collection.add(card);	
             }
 		}
 		
-		for (Collection<Card> collection : cardValuesFound.values()) {
-			if (collection.size() == 4) {
-				List<Card> cardValuesList = new ArrayList<>(cardValues);
-				for (Card card : collection) {
-					topFiveCards.add(card);
-									
-					cardValuesList.remove(card);	
-					
-				}
-				
-				topFiveCards.add(cardValuesList.iterator().next());
-			}
-		}
-		
-		return topFiveCards;
+		return cardValuesFound;
 	}
 	
-	public static Collection<Card> getTwoPair(Collection<Card> cards) {
+	public static Collection<Card> getDuplicates(Collection<Card> cards, int count) {
 
-		Set<Card> cardValues = getCardsSortedAceHigh(cards);
-
-		List<Card> topFiveCards = new ArrayList<>();
-
-		List<Card> cardValuesList = new ArrayList<>(cardValues);
-
-		Map<Card, Integer> cardValuesFound = new HashMap<>();
-
-		Set<Card> pairSet = new HashSet<>();
-
-		for (int x = 0; x < cardValuesList.size(); x++) {
-			Card card = cardValuesList.remove(x);
-
-			int cardValue = card.getValue();
-
-			if (!cardValuesFound.containsValue(cardValue)) {
-				cardValuesFound.put(card, cardValue);
-			} else {
-				for (Entry<Card, Integer> entry : cardValuesFound.entrySet()) {
-					if (Objects.equals(cardValue, entry.getValue())) {
-						pairSet.add(entry.getKey());
-						pairSet.add(card);
-						break;
-					}
-				}
+		List<Card> cardValues = new ArrayList<>(getCardsSortedAceHigh(cards));
+	
+		Collection<Card> jokers = getAndRemoveJokers(cardValues);
+			
+		List<Card> returnCards = new ArrayList<>();
+		
+		Map<Integer, Collection<Card>> cardGroups = new TreeMap<>(Collections.reverseOrder());
+		
+		cardGroups.putAll(getCardGroups((cardValues)));
+		
+		for (Collection<Card> collection : cardGroups.values()) {
+			int collectionSize = collection.size();
+			
+			int adjCollectionSize = collectionSize + jokers.size();
+			
+			if (adjCollectionSize >= count) { 
+				
+				returnCards.addAll(jokers);
+				returnCards.addAll(collection);
+				
 			}
-			if (pairSet.size() == 4) {
-				break;
-			}
-		}
-		if (pairSet.size() == 4) {
-			topFiveCards.addAll(pairSet);
-			
-			cardValuesList = new ArrayList<>(cardValues);
-			
-			cardValuesList.removeAll(pairSet);
-			
-			Card card = cardValuesList.iterator().next();
-			
-			topFiveCards.add(card);
 		}
 		
-		return topFiveCards;
-
+		return returnCards;
+	}
+	
+	private static Collection<Card> getTwoPair(Collection<Card> cards) {
+		Collection<Card> pair = getPair(cards);
+		
+		if (pair.isEmpty()) {
+			return pair;
+		}
+		
+		List<Card> cardValues = cards.stream()
+			.filter(x -> !pair.contains(x))
+			.collect(Collectors.toList());
+		
+		Collection<Card> pair2 = getPair(cardValues);
+		
+		if (pair2.isEmpty()) {
+			return pair2;
+		}
+		
+		Collection<Card> returnCards = new ArrayList<>(pair);
+		returnCards.addAll(pair2);
+		
+		return returnCards;
 	}
 	
 	public static Collection<Card> getStraightFlush(Collection<Card> cards) {
@@ -147,141 +160,37 @@ public class HandUtil {
 	
 	public static Collection<Card> getFullHouse(Collection<Card> cards) {
 
-		Set<Card> cardValues = getCardsSortedAceHigh(cards);
+		Collection<Card> trips = getTrips(cards);
 		
-		List<Card> topFiveCards = new ArrayList<>();
-		
-		List<Card> trips = new ArrayList<>(getTrips(cardValues));
-		
-		if (trips.size() > 0) {
-			cardValues.removeAll(trips);
-			
-			List<Card> pair = new ArrayList<>(getPair(cardValues));
-			
-			if (pair.size() > 0) {
-				topFiveCards.add(trips.get(0));
-				
-				topFiveCards.add(trips.get(1));
-				
-				topFiveCards.add(trips.get(2));
-
-				topFiveCards.add(pair.get(0));
-				
-				topFiveCards.add(pair.get(1));
-			}
-			
+		if (trips.isEmpty()) {
+			return trips;
 		}
 		
-		return topFiveCards;
+		List<Card> cardValues = cards.stream()
+			.filter(x -> !trips.contains(x))
+			.collect(Collectors.toList());
+		
+		Collection<Card> pair2 = getPair(cardValues);
+		
+		if (pair2.isEmpty()) {
+			return pair2;
+		}
+		
+		Collection<Card> returnCards = new ArrayList<>(trips);
+		returnCards.addAll(pair2);
+		
+		return returnCards;		
 	}
 	
 	public static Collection<Card> getTrips(Collection<Card> cards) {
 
-		Set<Card> cardValues = getCardsSortedAceHigh(cards);
-		
-		List<Runnable> runnables = new ArrayList<>();
 
-		List<Card> jokers = new ArrayList<>();
-
-		List<Card> topFiveCards = new ArrayList<>();
-		
-		for (Card card : cardValues) {
-			if (card.getSuit() == Suit.JOKER) {
-				runnables.add(() -> cardValues.remove(card));
-				jokers.add(card);
-			}
-		}
-
-		for (Runnable runnable : runnables) {
-			runnable.run();
-		}
-		
-		if (jokers.size() > 0) {
-			topFiveCards.addAll(jokers);	
-		}
-		
-		for (Card card : cardValues) {
-			List<Card> potentialTrips = cardValues.stream().filter(x -> x.getValue() == card.getValue()).collect(Collectors.toList());
-			
-			if (potentialTrips.size() + jokers.size() > 2) {
-				topFiveCards.addAll(potentialTrips);
-			}
-		}
-		if (topFiveCards.size() > 2 && topFiveCards.size() < 5) {
-			for (Card card : cardValues) {
-				if (!topFiveCards.contains(card)) {
-					topFiveCards.add(card);
-				}
-				if (topFiveCards.size() == 5) {
-					break;
-				}
-			}
-		}
-		
-		return topFiveCards;
-		
+		return getDuplicates(cards, 3);
 	}
 	
 	public static Collection<Card> getPair(Collection<Card> cards) {
-		Set<Card> cardValues = getCardsSortedAceHigh(cards);
-		
-		List<Runnable> runnables = new ArrayList<>();
-
-		List<Card> jokers = new ArrayList<>();
-
-		List<Card> topFiveCards = new ArrayList<>();
-		
-		for (Card card : cardValues) {
-			if (card.getSuit() == Suit.JOKER) {
-				runnables.add(() -> cardValues.remove(card));
-				jokers.add(card);
-			}
-		}
-
-		for (Runnable runnable : runnables) {
-			runnable.run();
-		}
-		
-		if (jokers.size() > 0) {
-			topFiveCards.addAll(jokers);
-			
-			topFiveCards.addAll(cardValues.stream().limit(5 - jokers.size()).collect(Collectors.toList()));
-		}
-		else {
-			// check for aces first
-			Collection<Card> possiblePair = cardValues.stream().filter(card -> card.getValue() == 1).collect(Collectors.toList());
-			
-			if (possiblePair.size() > 1) {
-				for (Card card : possiblePair) {
-					topFiveCards.add(card);
-					
-					cardValues.remove(card);
-					
-					topFiveCards.addAll(cardValues.stream().limit(5 - possiblePair.size()).collect(Collectors.toList()));
-				}
-			}
-			else {
-				for (int x = 13; x > 1; x--) {
-					final int finalx = x;
-					possiblePair = cardValues.stream().filter(card -> card.getValue() == finalx).collect(Collectors.toList());
-					
-					if (possiblePair.size() > 1) {
-						for (Card card : possiblePair) {
-							topFiveCards.add(card);
-							
-							cardValues.remove(card);
-							
-							topFiveCards.addAll(cardValues.stream().limit(5 - possiblePair.size()).collect(Collectors.toList()));
-						}
-						
-						break;
-					}
-				}
-				
-			}
-		}
-		
-		return topFiveCards;
+	
+		return getDuplicates(cards, 2);
 	}
 	
 	public static Collection<Card> getFlush(Collection<Card> cards) {
