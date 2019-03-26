@@ -1,5 +1,6 @@
 package club.wodencafe.poker.cards;
 
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -9,12 +10,79 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 public class HandUtil {
+
+	public static Collection<Card> getRoyalFlush(Collection<Card> cards) {
+	
+
+		Collection<Card> topFiveCards = getStraightFlush(cards);
+		
+		if (topFiveCards.size() == 5) {
+			
+			List<Integer> straightFlush = Arrays.asList(10, 11, 12, 13, 1);
+			
+			if (topFiveCards.stream()
+				.map(Card::getValue)
+				.filter(straightFlush::contains)
+				.count() == 5) {
+				return topFiveCards;
+			}
+		}
+		return new ArrayList<>();
+		
+		
+		
+	}
+	public static Collection<Card> getQuads(Collection<Card> cards) {
+
+		Set<Card> cardValues = getCardsSortedAceHigh(cards);
+
+		List<Card> topFiveCards = new ArrayList<>();
+
+		Map<Integer, Collection<Card>> cardValuesFound = new HashMap<>();
+		
+		for (Card card : cardValues) {
+
+			int cardValue = card.getValue();
+			
+			Collection<Card> collection = cardValuesFound.get(cardValue);
+			
+            if (collection == null) {
+            	collection = new ArrayList<Card>(Arrays.asList(card));
+            	
+            	cardValuesFound.put(cardValue, collection);
+            } else {
+            	
+            	collection.add(card);
+            	
+                if (collection.size() == 4) {
+                	break;
+                }
+            }
+		}
+		
+		for (Collection<Card> collection : cardValuesFound.values()) {
+			if (collection.size() == 4) {
+				List<Card> cardValuesList = new ArrayList<>(cardValues);
+				for (Card card : collection) {
+					topFiveCards.add(card);
+									
+					cardValuesList.remove(card);	
+					
+				}
+				
+				topFiveCards.add(cardValuesList.iterator().next());
+			}
+		}
+		
+		return topFiveCards;
+	}
 	
 	public static Collection<Card> getTwoPair(Collection<Card> cards) {
 
@@ -69,9 +137,12 @@ public class HandUtil {
 		
 		if (!flush.isEmpty()) {
 			flush = getStraight(cards);
+			if (!flush.isEmpty()) {
+				return flush;
+			}
 		}
 		
-		return flush;
+		return new ArrayList<>();
 	}
 	
 	public static Collection<Card> getFullHouse(Collection<Card> cards) {
