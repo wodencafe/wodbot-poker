@@ -9,6 +9,8 @@ import java.util.Optional;
 import org.junit.Assert;
 import org.junit.Test;
 
+import club.wodencafe.poker.cards.hands.Hand;
+
 public class CardTest {
 	/*@Test
 	public void test() throws Exception {
@@ -32,9 +34,9 @@ public class CardTest {
 		cards.add(Card.getCard(Suit.DIAMOND, 5));
 		cards.add(Card.getCard(Suit.DIAMOND, 6));
 		
-		boolean isStraight = HandUtil.getStraight(cards).size() > 0;
+		Hand hand = HandUtil.getHand(cards);
 		
-		Assert.assertTrue(isStraight);
+		Assert.assertTrue(hand.getHandType() == HandType.STRAIGHT);
 
 		cards = new ArrayList<>();
 		cards.add(Card.getCard(Suit.DIAMOND, 2));

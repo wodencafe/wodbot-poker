@@ -5,12 +5,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -20,12 +16,73 @@ import club.wodencafe.poker.cards.hands.Hand;
 
 public class HandUtil {
 
+	private static Collection<HandType> handTypes = Arrays.asList(HandType.values()).stream()
+			.sorted(Collections.reverseOrder()).collect(Collectors.toList());
+
 	public static Hand getHand(Collection<Card> cards) {
 
-		return null;
+		List<Card> cardValues = new ArrayList<>(getCardsSortedAceHigh(cards));
+
+		List<Card> handCards = new ArrayList<>();
+		Hand hand = null;
+		for (HandType handType : handTypes) {
+			switch (handType) {
+				case ROYAL_FLUSH: {
+					handCards.addAll(getRoyalFlush(cardValues));
+				}
+					break;
+				case STRAIGHT_FLUSH: {
+					handCards.addAll(getStraightFlush(cardValues));
+				}
+					break;
+				case FOUR: {
+					handCards.addAll(getQuads(cardValues));
+				}
+					break;
+				case FULL_HOUSE: {
+					handCards.addAll(getFullHouse(cardValues));
+				}
+					break;
+				case FLUSH: {
+					handCards.addAll(getFlush(cardValues));
+				}
+					break;
+				case STRAIGHT: {
+					handCards.addAll(getStraight(cardValues));
+				}
+					break;
+				case TRIPS: {
+					handCards.addAll(getTrips(cardValues));
+				}
+					break;
+				case TWO_PAIR: {
+					handCards.addAll(getTwoPair(cardValues));
+				}
+					break;
+				case PAIR: {
+					handCards.addAll(getPair(cardValues));
+				}
+				break;
+			}
+			if (handCards.size() > 0) {
+				if (handCards.size() < 5) {
+					cardValues.removeAll(handCards);
+
+					cardValues.stream().limit(5 - handCards.size()).forEach(handCards::add);
+
+				}
+				hand = new Hand(handCards, handType);
+				break;
+			}
+		}
+		if (hand == null) {
+			handCards = cardValues.stream().limit(5).collect(Collectors.toList());
+			hand = new Hand(handCards, HandType.HIGH);
+		}
+		return hand;
 	}
 
-	public static Collection<Card> getRoyalFlush(Collection<Card> cards) {
+	private static Collection<Card> getRoyalFlush(Collection<Card> cards) {
 
 		Collection<Card> topFiveCards = getStraightFlush(cards);
 
@@ -41,7 +98,7 @@ public class HandUtil {
 
 	}
 
-	public static Collection<Card> getQuads(Collection<Card> cards) {
+	private static Collection<Card> getQuads(Collection<Card> cards) {
 
 		return getDuplicates(cards, 4);
 	}
@@ -65,7 +122,7 @@ public class HandUtil {
 		return jokers;
 	}
 
-	public static Map<Integer, Collection<Card>> getCardGroups(Collection<Card> cards) {
+	private static Map<Integer, Collection<Card>> getCardGroups(Collection<Card> cards) {
 
 		Map<Integer, Collection<Card>> cardValuesFound = new HashMap<>();
 
@@ -88,7 +145,7 @@ public class HandUtil {
 		return cardValuesFound;
 	}
 
-	public static Collection<Card> getDuplicates(Collection<Card> cards, int count) {
+	private static Collection<Card> getDuplicates(Collection<Card> cards, int count) {
 
 		List<Card> cardValues = new ArrayList<>(getCardsSortedAceHigh(cards));
 
@@ -137,7 +194,7 @@ public class HandUtil {
 		return returnCards;
 	}
 
-	public static Collection<Card> getStraightFlush(Collection<Card> cards) {
+	private static Collection<Card> getStraightFlush(Collection<Card> cards) {
 		Collection<Card> flush = getFlush(cards);
 
 		if (!flush.isEmpty()) {
@@ -150,7 +207,7 @@ public class HandUtil {
 		return new ArrayList<>();
 	}
 
-	public static Collection<Card> getFullHouse(Collection<Card> cards) {
+	private static Collection<Card> getFullHouse(Collection<Card> cards) {
 
 		Collection<Card> trips = getTrips(cards);
 
@@ -172,17 +229,17 @@ public class HandUtil {
 		return returnCards;
 	}
 
-	public static Collection<Card> getTrips(Collection<Card> cards) {
+	private static Collection<Card> getTrips(Collection<Card> cards) {
 
 		return getDuplicates(cards, 3);
 	}
 
-	public static Collection<Card> getPair(Collection<Card> cards) {
+	private static Collection<Card> getPair(Collection<Card> cards) {
 
 		return getDuplicates(cards, 2);
 	}
 
-	public static Collection<Card> getFlush(Collection<Card> cards) {
+	private static Collection<Card> getFlush(Collection<Card> cards) {
 
 		Set<Card> cardValues = getCardsSortedAceHigh(cards);
 
@@ -218,44 +275,32 @@ public class HandUtil {
 		return cardValues;
 	}
 
-	public static Collection<Card> getStraight(Collection<Card> cards) {
+	private static Collection<Card> getStraight(Collection<Card> cards) {
 		// 6, Jo, 4, Jo, 2
 		// 6, 5, 4, Jo, Jo
-		List<Card> cardValues = new ArrayList<>(cards);
-		Collection<Card> jokers = getAndRemoveJokers(cardValues);
-		cardValues = new ArrayList<>(getCardsSortedAceHigh(cardValues));
-		for (int x = 0; x < (cardValues.size() - 4) + jokers.size(); x++) {
-			List<Card> tempJokers = new ArrayList<>(jokers);
-			List<Card> topFiveCards = new ArrayList<>();
-			Card card = cardValues.get(x);
-			topFiveCards.add(card);
-			int cardValue = card.getValue();	
-			int count = 1;
-			while (topFiveCards.size() < 5) {
-				Card nextCard = cardValues.get(x + count) ;
-				if (nextCard.getValue() == (cardValue - 1)) {
-					count++;
-					topFiveCards.add(nextCard);
-					cardValue = nextCard.getValue();
-				}
-				else if (tempJokers.iterator().hasNext()) {
-					Card joker = tempJokers.iterator().next();
-					topFiveCards.add(joker);
-					tempJokers.remove(joker);
-					cardValue--;
-				}
-				else {
-					break;
-				}
-			}
-			if (topFiveCards.size() == 5) {
-				return topFiveCards;
-			}
-			
-		}
-		return Collections.emptyList();
-		/*List<Card> cardsNew = new ArrayList<>(cards);
+		/*
+		 * List<Card> cardValues = new ArrayList<>(cards); Collection<Card> jokers =
+		 * getAndRemoveJokers(cardValues); cardValues = new
+		 * ArrayList<>(getCardsSortedAceHigh(cardValues)); for (int x = 0; x <
+		 * (cardValues.size() - 4) + jokers.size(); x++) { List<Card> tempJokers = new
+		 * ArrayList<>(jokers); List<Card> topFiveCards = new ArrayList<>(); Card card =
+		 * cardValues.get(x); topFiveCards.add(card); int cardValue =
+		 * Math.min(card.getValue() + tempJokers.size(), 13); int count = 1; while
+		 * (topFiveCards.size() < 5) { Card nextCard = cardValues.get(x + count) ; if
+		 * (nextCard.getValue() == (cardValue - 1)) { count++;
+		 * topFiveCards.add(nextCard); cardValue = nextCard.getValue(); } else if
+		 * (tempJokers.iterator().hasNext()) { Card joker =
+		 * tempJokers.iterator().next(); topFiveCards.add(joker);
+		 * tempJokers.remove(joker); cardValue--; } else { break; } } if
+		 * (topFiveCards.size() == 5) { return topFiveCards; }
+		 * 
+		 * } return Collections.emptyList();
+		 */
 
+		List<Card> cardsNew = new ArrayList<>(getCardsSortedAceHigh(cards));
+
+		List<Card> topFiveCards = new ArrayList<>();
+		Collection<Card> jokers = getAndRemoveJokers(cardsNew);
 		Set<Card> cardValues = cardsNew.stream().collect(Collectors.toSet());
 		cardValues = new TreeSet<Card>(cardValues);
 
@@ -280,7 +325,7 @@ public class HandUtil {
 				}
 			}
 		}
-		return topFiveCards;*/
+		return topFiveCards;
 	}
 
 	private static final Collection<Integer> straight1 = Arrays.asList(1, 2, 3, 4, 5);
