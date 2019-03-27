@@ -30,9 +30,9 @@ public class CardTest {
 		List<Card> cards = new ArrayList<>();
 		cards.add(Card.getCard(Suit.DIAMOND, 2));
 		cards.add(Card.getCard(Suit.DIAMOND, 3));
-		cards.add(Card.getCard(Suit.DIAMOND, 4));
+		cards.add(Card.getCard(Suit.CLUB, 4));
 		cards.add(Card.getCard(Suit.DIAMOND, 5));
-		cards.add(Card.getCard(Suit.DIAMOND, 6));
+		cards.add(Card.getCard(Suit.HEART, 6));
 		
 		Hand hand = HandUtil.getHand(cards);
 		
@@ -41,13 +41,13 @@ public class CardTest {
 		cards = new ArrayList<>();
 		cards.add(Card.getCard(Suit.DIAMOND, 2));
 		cards.add(Card.getCard(Suit.DIAMOND, 3));
-		cards.add(Card.getCard(Suit.DIAMOND, 5));
+		cards.add(Card.getCard(Suit.CLUB, 5));
 		cards.add(Card.getCard(Suit.DIAMOND, 6));
 		cards.add(Card.getCard(Suit.DIAMOND, 7));
 
-		isStraight = HandUtil.getStraight(cards).size() > 0;
+		hand = HandUtil.getHand(cards);
 		
-		Assert.assertFalse(isStraight);
+		Assert.assertTrue(hand.getHandType() != HandType.STRAIGHT);
 
 		cards = new ArrayList<>();
 		cards.add(Card.getCard(Suit.DIAMOND, 2));
@@ -59,47 +59,57 @@ public class CardTest {
 		cards.add(Card.getCard(Suit.DIAMOND, 10));
 		cards.add(Card.getCard(Suit.DIAMOND, 11));
 
-		isStraight = HandUtil.getStraight(cards).size() > 0;
-		Assert.assertFalse(isStraight);
+		hand = HandUtil.getHand(cards);
 		
+		Assert.assertTrue(hand.getHandType() != HandType.STRAIGHT);
 
 		cards = new ArrayList<>();
-		cards.add(Card.getCard(Suit.DIAMOND, 2));
+		cards.add(Card.getCard(Suit.HEART, 2));
 		cards.add(Card.getCard(Suit.DIAMOND, 3));
-		cards.add(Card.getCard(Suit.DIAMOND, 5));
-		cards.add(Card.getCard(Suit.DIAMOND, 6));
+		cards.add(Card.getCard(Suit.SPADE, 5));
+		cards.add(Card.getCard(Suit.SPADE, 6));
 		cards.add(Card.getCard(Suit.DIAMOND, 7));
 		cards.add(Card.getCard(Suit.JOKER, -1));
-		cards.add(Card.getCard(Suit.DIAMOND, 9));
+		cards.add(Card.getCard(Suit.CLUB, 9));
 		cards.add(Card.getCard(Suit.DIAMOND, 10));
-		cards.add(Card.getCard(Suit.DIAMOND, 11));
+		cards.add(Card.getCard(Suit.CLUB, 11));
 
-		isStraight = HandUtil.getStraight(cards).size() > 0;
-		Assert.assertTrue(isStraight);
+
+		hand = HandUtil.getHand(cards);
+		
+		Assert.assertTrue(hand.getHandType() == HandType.STRAIGHT);
 		
 
 		cards = new ArrayList<>();
 
 		cards.add(Card.getCard(Suit.DIAMOND, 13));
-		cards.add(Card.getCard(Suit.DIAMOND, 12));
-		cards.add(Card.getCard(Suit.DIAMOND, 6));
-		cards.add(Card.getCard(Suit.DIAMOND, 5));
+		cards.add(Card.getCard(Suit.SPADE, 12));
+		cards.add(Card.getCard(Suit.HEART, 6));
+		cards.add(Card.getCard(Suit.CLUB, 5));
 		cards.add(Card.getCard(Suit.DIAMOND, 4));
 		cards.add(Card.getCard(Suit.JOKER, -1));
 		cards.add(Card.getCard(Suit.JOKER, -1));
-		isStraight = HandUtil.getStraight(cards).size() > 0;
-		Assert.assertTrue(isStraight);
+
+		hand = HandUtil.getHand(cards);
+		
+		Assert.assertTrue(hand.getHandType() == HandType.STRAIGHT);
 
 		cards = new ArrayList<>();
 
 		cards.add(Card.getCard(Suit.JOKER, -1));
 		cards.add(Card.getCard(Suit.JOKER, -1));
 		cards.add(Card.getCard(Suit.DIAMOND, 12));
-		cards.add(Card.getCard(Suit.DIAMOND, 11));
-		cards.add(Card.getCard(Suit.DIAMOND, 10));
-		cards.add(Card.getCard(Suit.DIAMOND, 5));
+		cards.add(Card.getCard(Suit.SPADE, 11));
+		cards.add(Card.getCard(Suit.CLUB, 10));
+		cards.add(Card.getCard(Suit.HEART, 5));
 		cards.add(Card.getCard(Suit.DIAMOND, 4));
-		List<Card> handCards = new ArrayList<>(HandUtil.getStraight(cards));
+
+		hand = HandUtil.getHand(cards);
+		
+		Assert.assertTrue(hand.getHandType() == HandType.STRAIGHT);
+		
+		List<Card> handCards = hand.getCards();
+		
 		Assert.assertTrue(handCards.size() > 0);
 		
 		for (int x = 0; x < 5; x++) {

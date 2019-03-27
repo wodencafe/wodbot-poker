@@ -23,6 +23,12 @@ public class HandUtil {
 
 		List<Card> cardValues = new ArrayList<>(getCardsSortedAceHigh(cards));
 
+
+		cards.stream()
+			.filter(card -> card.getSuit() == Suit.JOKER)
+			.filter(card -> !cardValues.contains(card))
+			.forEach(cardValues::add);
+		
 		List<Card> handCards = new ArrayList<>();
 		Hand hand = null;
 		for (HandType handType : handTypes) {
@@ -297,10 +303,11 @@ public class HandUtil {
 		 * } return Collections.emptyList();
 		 */
 
+		Collection<Card> jokers = getAndRemoveJokers(cards);
+		
 		List<Card> cardsNew = new ArrayList<>(getCardsSortedAceHigh(cards));
 
 		List<Card> topFiveCards = new ArrayList<>();
-		Collection<Card> jokers = getAndRemoveJokers(cardsNew);
 		Set<Card> cardValues = cardsNew.stream().collect(Collectors.toSet());
 		cardValues = new TreeSet<Card>(cardValues);
 
