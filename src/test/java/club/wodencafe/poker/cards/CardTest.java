@@ -3,6 +3,7 @@ package club.wodencafe.poker.cards;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.Assert;
@@ -24,7 +25,7 @@ public class CardTest {
 	
 	@Test
 	public void testStraight() throws Exception {
-		Collection<Card> cards = new ArrayList<>();
+		List<Card> cards = new ArrayList<>();
 		cards.add(Card.getCard(Suit.DIAMOND, 2));
 		cards.add(Card.getCard(Suit.DIAMOND, 3));
 		cards.add(Card.getCard(Suit.DIAMOND, 4));
@@ -74,5 +75,34 @@ public class CardTest {
 		isStraight = HandUtil.getStraight(cards).size() > 0;
 		Assert.assertTrue(isStraight);
 		
+
+		cards = new ArrayList<>();
+
+		cards.add(Card.getCard(Suit.DIAMOND, 13));
+		cards.add(Card.getCard(Suit.DIAMOND, 12));
+		cards.add(Card.getCard(Suit.DIAMOND, 6));
+		cards.add(Card.getCard(Suit.DIAMOND, 5));
+		cards.add(Card.getCard(Suit.DIAMOND, 4));
+		cards.add(Card.getCard(Suit.JOKER, -1));
+		cards.add(Card.getCard(Suit.JOKER, -1));
+		isStraight = HandUtil.getStraight(cards).size() > 0;
+		Assert.assertTrue(isStraight);
+
+		cards = new ArrayList<>();
+
+		cards.add(Card.getCard(Suit.JOKER, -1));
+		cards.add(Card.getCard(Suit.JOKER, -1));
+		cards.add(Card.getCard(Suit.DIAMOND, 12));
+		cards.add(Card.getCard(Suit.DIAMOND, 11));
+		cards.add(Card.getCard(Suit.DIAMOND, 10));
+		cards.add(Card.getCard(Suit.DIAMOND, 5));
+		cards.add(Card.getCard(Suit.DIAMOND, 4));
+		List<Card> handCards = new ArrayList<>(HandUtil.getStraight(cards));
+		Assert.assertTrue(handCards.size() > 0);
+		
+		for (int x = 0; x < 5; x++) {
+			Assert.assertTrue(handCards.get(x).equals(cards.get(x)));
+			
+		}
 	}
 }

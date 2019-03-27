@@ -219,25 +219,42 @@ public class HandUtil {
 	}
 
 	public static Collection<Card> getStraight(Collection<Card> cards) {
-
-		List<Card> topFiveCards = new ArrayList<>();
-
-		List<Card> jokers = new ArrayList<>();
-
-		List<Card> cardsNew = new ArrayList<>(cards);
-
-		List<Runnable> runnables = new ArrayList<>();
-
-		for (Card card : cardsNew) {
-			if (card.getSuit() == Suit.JOKER) {
-				runnables.add(() -> cardsNew.remove(card));
-				jokers.add(card);
+		// 6, Jo, 4, Jo, 2
+		// 6, 5, 4, Jo, Jo
+		List<Card> cardValues = new ArrayList<>(cards);
+		Collection<Card> jokers = getAndRemoveJokers(cardValues);
+		cardValues = new ArrayList<>(getCardsSortedAceHigh(cardValues));
+		for (int x = 0; x < (cardValues.size() - 4) + jokers.size(); x++) {
+			List<Card> tempJokers = new ArrayList<>(jokers);
+			List<Card> topFiveCards = new ArrayList<>();
+			Card card = cardValues.get(x);
+			topFiveCards.add(card);
+			int cardValue = card.getValue();	
+			int count = 1;
+			while (topFiveCards.size() < 5) {
+				Card nextCard = cardValues.get(x + count) ;
+				if (nextCard.getValue() == (cardValue - 1)) {
+					count++;
+					topFiveCards.add(nextCard);
+					cardValue = nextCard.getValue();
+				}
+				else if (tempJokers.iterator().hasNext()) {
+					Card joker = tempJokers.iterator().next();
+					topFiveCards.add(joker);
+					tempJokers.remove(joker);
+					cardValue--;
+				}
+				else {
+					break;
+				}
 			}
+			if (topFiveCards.size() == 5) {
+				return topFiveCards;
+			}
+			
 		}
-
-		for (Runnable runnable : runnables) {
-			runnable.run();
-		}
+		return Collections.emptyList();
+		/*List<Card> cardsNew = new ArrayList<>(cards);
 
 		Set<Card> cardValues = cardsNew.stream().collect(Collectors.toSet());
 		cardValues = new TreeSet<Card>(cardValues);
@@ -263,7 +280,7 @@ public class HandUtil {
 				}
 			}
 		}
-		return topFiveCards;
+		return topFiveCards;*/
 	}
 
 	private static final Collection<Integer> straight1 = Arrays.asList(1, 2, 3, 4, 5);
