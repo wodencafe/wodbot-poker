@@ -13,6 +13,9 @@ public class Card implements Comparable<Card> {
 	public int getValue() {
 		return value;
 	}
+	static Card getJoker() {
+		return new Card(Suit.JOKER, -1);
+	}
 	static Card getCard(Suit suit, int value) {
 		return new Card(suit, value);
 	}

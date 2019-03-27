@@ -173,6 +173,7 @@ public class HandUtil {
 				returnCards.addAll(jokers);
 				returnCards.addAll(collection);
 
+				break;
 			}
 		}
 
@@ -247,7 +248,7 @@ public class HandUtil {
 
 	private static Collection<Card> getFlush(Collection<Card> cards) {
 
-		Set<Card> cardValues = getCardsSortedAceHigh(cards);
+		List<Card> cardValues = getCardsSortedAceHigh(cards);
 
 		List<Suit> suits = Arrays.asList(Suit.HEART, Suit.DIAMOND, Suit.SPADE, Suit.CLUB);
 
@@ -263,14 +264,12 @@ public class HandUtil {
 		return Collections.emptyList();
 	}
 
-	private static Set<Card> getCardsSortedAceHigh(Collection<Card> cards) {
-		List<Card> cardsNew = new ArrayList<>(cards);
+	private static List<Card> getCardsSortedAceHigh(Collection<Card> cards) {
 
-		Set<Card> cardValues = cardsNew.stream().collect(Collectors.toSet());
-		cardValues = new TreeSet<Card>(cardValues);
+		
+		List<Card> cardValuesList = new ArrayList<>(cards);
 
-		List<Card> cardValuesList = new ArrayList<>(cardValues);
-
+		Collections.sort(cardValuesList);
 		for (Card card : cardValuesList) {
 			if (card.getValue() == 1) {
 				cardValuesList.remove(card);
@@ -278,7 +277,7 @@ public class HandUtil {
 				cardValuesList.add(0, card);
 			}
 		}
-		return cardValues;
+		return cardValuesList;
 	}
 
 	private static Collection<Card> getStraight(Collection<Card> cards) {
