@@ -97,7 +97,7 @@ public class HandUtil {
 			List<Integer> straightFlush = Arrays.asList(10, 11, 12, 13, 1);
 
 			if (topFiveCards.stream().map(Card::getValue).filter(straightFlush::contains).count() == 5) {
-				return topFiveCards;
+				return getCardsSortedAceHigh(topFiveCards);
 			}
 		}
 		return new ArrayList<>();
