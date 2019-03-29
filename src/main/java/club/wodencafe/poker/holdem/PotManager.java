@@ -1,14 +1,16 @@
 package club.wodencafe.poker.holdem;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.NavigableMap;
+
 import java.util.Set;
+import java.util.TreeMap;
 
 public class PotManager {
-	private Map<PlayerRoundData, Long> potFromPlayers = new HashMap<>();
+	private NavigableMap<PlayerRoundData, Long> potFromPlayers = new TreeMap<>();
 	public PotManager(List<PlayerRoundData> playersList) {
 		for (PlayerRoundData player : playersList) {
 			if (!player.isFolded()) {
@@ -30,5 +32,26 @@ public class PotManager {
 			}
 		}
 		return true;
+	}
+	public void check(PlayerRoundData player) {
+		potFromPlayers.put(player, 0L);
+	}
+	public void bet(PlayerRoundData player, long amount) {
+		potFromPlayers.put(player, amount);
+	}
+	public void call(PlayerRoundData player) {
+
+		for (Map.Entry<PlayerRoundData, Long> e : potFromPlayers.entrySet()) {
+		    Map.Entry<PlayerRoundData, Long> prev = potFromPlayers.lowerEntry(e.getKey());  // previous
+		
+		    long prevAmount = prev.getValue();
+		    
+		    potFromPlayers.put(e.getKey(), prevAmount);
+		    
+		    break;
+		}	
+	}
+	public void raise(PlayerRoundData player, long amount) {
+		potFromPlayers.put(player, amount);
 	}
 }

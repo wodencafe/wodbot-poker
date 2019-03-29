@@ -10,7 +10,7 @@ import javax.persistence.Table;
 @Entity
 @Table(name="PLAYER")
 @PrimaryKeyJoinColumn
-public class Player {
+public class Player extends BusinessEntity {
 
 	@Column
 	private Long money;

@@ -1,6 +1,7 @@
 package club.wodencafe.poker.holdem;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Objects;
@@ -77,8 +78,13 @@ public class BettingRound {
 			List<Command> previousCommandsWithoutFolds = getPreviousCommandsWithoutFolds();
 			
 			if (previousCommandsWithoutFolds.isEmpty()) {
-				// Applicable commands are bet and check.
-				
+				// Applicable commands are Check, Bet, (Fold)
+				if (commandType == CommandType.CHECK) {
+					check(command.getPlayer());
+				}
+				else if (commandType == CommandType.BET) {
+					bet(command.getPlayer(), command.getData().get());
+				}
 				
 			}
 			else {
@@ -125,37 +131,59 @@ public class BettingRound {
 		}
 	}
 
+	private PlayerRoundData getCurrentPlayerRoundData(Player player) {
+		return players.stream().filter(x -> x.get().equals(player)).findAny().orElse(null);
+	}
+
+	private PlayerRoundData getPlayerRoundData(Player player) {
+		return getCurrentPlayerRoundData(getCurrentPlayer());
+	}
+
 	private void check(Player player) {
 		Command checkCommand = new Command(CommandType.CHECK, Optional.empty(), player);
 		
 		previousCommands.add(checkCommand);
+		
+		potManager.check(getPlayerRoundData(player));
 	}
 	private void bet(Player player, long amount) {
 		Command betCommand = new Command(CommandType.BET, Optional.of(amount), player);
 		
 		previousCommands.add(betCommand);
+
+		potManager.bet(getPlayerRoundData(player), amount);
 	}
 	private void call(Player player) {
 		Command callCommand = new Command(CommandType.CALL, Optional.empty(), player);
 		
-		previousCommands.add(callCommand);		
+		previousCommands.add(callCommand);
+		
+		potManager.call(getPlayerRoundData(player));
 	}
 	private void raise(Player player, long amount) {
 		Command raiseCommand = new Command(CommandType.RAISE, Optional.of(amount), player);
 		
 		previousCommands.add(raiseCommand);
+		
+		potManager.raise(getPlayerRoundData(player), amount);
+	}
+
+	private List<Player> getActivePlayers() {
+		return players.stream()
+			.filter(x -> !x.isFolded())
+			.filter(x -> !x.isShown())
+			.map(x -> x.get())
+			.collect(Collectors.toList());
+	}
+	private List<Player> getPlayersFromCommands() {
+		return previousCommands.stream()
+			.map(x -> x.getPlayer())
+			.collect(Collectors.toList());
+	}
+	private boolean isAllPlayed() {
+		return getPlayersFromCommands().containsAll(getActivePlayers()) &&
+			potManager.isPotSatisfied();
 	}
 	
-	@Override
-	protected void runOneIteration() throws Exception {
-
-	}
-
-	@Override
-	protected Scheduler scheduler() {
-		Scheduler scheduler = Scheduler.newFixedRateSchedule(0, 30, TimeUnit.SECONDS);
-		return scheduler;
-	}
-
 	
 }
