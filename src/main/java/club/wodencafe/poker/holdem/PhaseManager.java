@@ -7,6 +7,13 @@ import java.util.function.Supplier;
 import io.reactivex.Observable;
 import io.reactivex.subjects.PublishSubject;
 
+/**
+ * 
+ * This class represents the different {@link Phase}s of
+ * a given round of poker, for the {@link RoundMediator} class.
+ * 
+ * @author wodencafe
+ */
 public class PhaseManager implements AutoCloseable, Runnable, Supplier<Phase> {
 
 	private PublishSubject<Phase> newPhase = PublishSubject.create();

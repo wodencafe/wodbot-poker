@@ -1,12 +1,14 @@
 package club.wodencafe.poker.cards.hands;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import club.wodencafe.poker.cards.Card;
 import club.wodencafe.poker.cards.HandType;
+import club.wodencafe.poker.cards.HandUtil;
 
-public class Hand {
+public class Hand implements Comparable<Hand> {
 
 	private List<Card> cards;
 	
@@ -24,6 +26,14 @@ public class Hand {
 
 	public HandType getHandType() {
 		return handType;
+	}
+	
+	public List<Card> getNonHandCards() {
+		List<Card> cards = new ArrayList<>(getCards());
+		
+		cards.removeAll(getHandTypeCards());
+		
+		return cards;
 	}
 	
 	public List<Card> getHandTypeCards() {
@@ -60,5 +70,26 @@ public class Hand {
 		return getCards().stream()
 			.limit(count)
 			.collect(Collectors.toList());
+	}
+
+	@Override
+	public int compareTo(Hand arg0) {
+		if (this.handType != arg0.handType) {
+			return this.handType.getValue() - arg0.handType.getValue();
+		}
+		else {
+			
+			List<Card> sortedCards = HandUtil.getCardsSortedAceHigh(cards);
+			List<Card> otherSortedCards = HandUtil.getCardsSortedAceHigh(arg0.getCards());
+			for (int x = 0; x < getCards().size(); x++) {
+				Card card = sortedCards.get(x);
+				Card otherCard = otherSortedCards.get(x);
+				int cardCompare = card.getValue() - otherCard.getValue();
+				if (cardCompare != 0) {
+					return cardCompare;
+				}
+			}
+		}
+		return 0;
 	}
 }

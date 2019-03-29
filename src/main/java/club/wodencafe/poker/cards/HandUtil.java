@@ -23,7 +23,6 @@ public class HandUtil {
 
 		List<Card> cardValues = new ArrayList<>(getCardsSortedAceHigh(cards));
 
-
 		cards.stream()
 			.filter(card -> card.getSuit() == Suit.JOKER)
 			.filter(card -> !cardValues.contains(card))
@@ -264,7 +263,7 @@ public class HandUtil {
 		return Collections.emptyList();
 	}
 
-	private static List<Card> getCardsSortedAceHigh(Collection<Card> cards) {
+	public static List<Card> getCardsSortedAceHigh(Collection<Card> cards) {
 
 		
 		List<Card> cardValuesList = new ArrayList<>(cards);
