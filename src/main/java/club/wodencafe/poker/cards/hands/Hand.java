@@ -84,7 +84,7 @@ public class Hand implements Comparable<Hand> {
 			for (int x = 0; x < getCards().size(); x++) {
 				Card card = sortedCards.get(x);
 				Card otherCard = otherSortedCards.get(x);
-				int cardCompare = card.getValue() - otherCard.getValue();
+				int cardCompare = (card.getValue() == 1 ? 14 : card.getValue()) - (otherCard.getValue() == 1 ? 14 : otherCard.getValue());
 				if (cardCompare != 0) {
 					return cardCompare;
 				}

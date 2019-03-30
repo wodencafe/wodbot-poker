@@ -17,7 +17,8 @@ import club.wodencafe.poker.cards.hands.Hand;
 import static java.util.Arrays.*;
 
 public class HandTest {
-	//@Test
+	
+	@Test
 	public void testHands() throws Exception {
 
 		Hand nothingHand = getNothingHand();
@@ -61,12 +62,69 @@ public class HandTest {
 		
 	}
 	
+	private Hand getHigherStraightHand() {
+		Card jackSpades = getCard(SPADE, 11);
+		Card tenSpades = getCard(SPADE, 10);
+		Card nineClubs = getCard(CLUB, 9);
+		Card eightHearts = getCard(HEART, 8);
+		Card sevenSpades = getCard(SPADE, 7);
+		
+		List<Card> cardsInput = asList(
+			eightHearts,
+			sevenSpades,
+			tenSpades,
+			nineClubs,
+			jackSpades);
+
+		return getHand(cardsInput);
+	}
+	
 	@Test
 	public void testHighLowHands() throws Exception {
-		Hand highHand = getHigherStraightFlushHand();
+		Hand highHand;
 		
-		Hand lowHand = getStraightFlushHand();
+		Hand lowHand;
+		
+		highHand = getHigherNothingHand();
+		
+		lowHand = getNothingHand();
+		
+		Assert.assertTrue(highHand.compareTo(lowHand) > 0);
+				
+		highHand = getHigherPairHand();
+		
+		lowHand = getPairHand();
+		
+		Assert.assertTrue(highHand.compareTo(lowHand) > 0);
+		
+		highHand = getHigherTwoPairHand();
+		
+		lowHand = getTwoPairHand();
+		
+		Assert.assertTrue(highHand.compareTo(lowHand) > 0);
 
+		highHand = getHigherTripsHand();
+		
+		lowHand = getTripsHand();
+		
+		Assert.assertTrue(highHand.compareTo(lowHand) > 0);
+		
+		highHand = getHigherStraightHand();
+		
+		lowHand = getStraightHand();
+		
+		Assert.assertTrue(highHand.compareTo(lowHand) > 0);
+
+		highHand = getHigherFlushHand();
+		
+		lowHand = getFlushHand();
+		
+		Assert.assertTrue(highHand.compareTo(lowHand) > 0);
+		
+		highHand = getHigherFullHouseHand();
+		
+		lowHand = getFullHouseHand();
+		
 		Assert.assertTrue(highHand.compareTo(lowHand) > 0);
 		
 		highHand = getHigherQuadsHand();
@@ -75,16 +133,10 @@ public class HandTest {
 		
 		Assert.assertTrue(highHand.compareTo(lowHand) > 0);
 		
-		highHand = getHigherFlushHand();
+		highHand = getHigherStraightFlushHand();
 		
-		lowHand = getFlushHand();
-		
-		Assert.assertTrue(highHand.compareTo(lowHand) > 0);
+		lowHand = getStraightFlushHand();
 
-		highHand = getHigherNothingHand();
-		
-		lowHand = getNothingHand();
-		
 		Assert.assertTrue(highHand.compareTo(lowHand) > 0);
 		
 	}
@@ -220,6 +272,23 @@ public class HandTest {
 		return getHand(cardsInput);
 	}
 
+	private Hand getHigherFullHouseHand() {
+		Card twoClubs = getCard(CLUB, 2);
+		Card twoDiamonds = getCard(DIAMOND, 2);
+		Card twoHearts = getCard(HEART, 2);
+		Card tenSpades = getCard(SPADE, 10);
+		Card tenHearts = getCard(HEART, 10);
+		
+		List<Card> cardsInput = asList(
+			twoClubs,
+			twoHearts,
+			tenSpades,
+			twoDiamonds,
+			tenHearts);
+
+		return HandUtil.getHand(cardsInput);
+	}
+
 	private Hand getFullHouseHand() {
 		Card twoClubs = getCard(CLUB, 2);
 		Card twoDiamonds = getCard(DIAMOND, 2);
@@ -236,7 +305,7 @@ public class HandTest {
 
 		return HandUtil.getHand(cardsInput);
 	}
-	
+
 	private Hand getTwoPairHand() {
 		Card twoClubs = getCard(CLUB, 2);
 		Card twoDiamonds = getCard(DIAMOND, 2);
@@ -249,6 +318,23 @@ public class HandTest {
 			fiveClubs,
 			fiveSpades,
 			twoDiamonds,
+			kingHearts);
+
+		return getHand(cardsInput);
+	}
+
+	private Hand getHigherTwoPairHand() {
+		Card threeClubs = getCard(CLUB, 3);
+		Card threeDiamonds = getCard(DIAMOND, 3);
+		Card fiveClubs = getCard(CLUB, 5);
+		Card fiveSpades = getCard(SPADE, 5);
+		Card kingHearts = getCard(HEART, 13);
+		
+		List<Card> cardsInput = asList(
+			threeClubs,
+			fiveClubs,
+			fiveSpades,
+			threeDiamonds,
 			kingHearts);
 
 		return getHand(cardsInput);
@@ -289,8 +375,8 @@ public class HandTest {
 		
 		return HandUtil.getHand(cardsInput);
 	}
-	
-	private Hand getPairHand() {
+
+	private Hand getHigherPairHand() {
 		Card aceSpades = getCard(SPADE, 1);
 		Card aceClubs = getCard(CLUB, 1);
 		Card fiveHearts = getCard(HEART, 5);
@@ -307,7 +393,41 @@ public class HandTest {
 		
 		return HandUtil.getHand(cardsInput);
 	}
+	
+	private Hand getPairHand() {
+		Card sixSpades = getCard(SPADE, 6);
+		Card sixClubs = getCard(CLUB, 6);
+		Card fiveHearts = getCard(HEART, 5);
+		Card threeClubs = getCard(CLUB, 3);
+		Card twoSpades = getCard(SPADE, 2);
+		
 
+		List<Card> cardsInput = asList(
+			twoSpades,
+			fiveHearts,
+			sixClubs,
+			threeClubs,
+			sixSpades);
+		
+		return HandUtil.getHand(cardsInput);
+	}
+
+	private Hand getHigherTripsHand() {
+		Card threeClubs = getCard(CLUB, 3);
+		Card threeDiamonds = getCard(DIAMOND, 3);
+		Card threeHearts = getCard(HEART, 3);
+		Card nineSpades = getCard(SPADE, 9);
+		Card kingHearts = getCard(HEART, 13);
+		
+		List<Card> cardsInput = asList(
+			threeClubs,
+			threeHearts,
+			nineSpades,
+			threeDiamonds,
+			kingHearts);
+
+		return HandUtil.getHand(cardsInput);
+	}
 	private Hand getTripsHand() {
 		Card twoClubs = getCard(CLUB, 2);
 		Card twoDiamonds = getCard(DIAMOND, 2);
