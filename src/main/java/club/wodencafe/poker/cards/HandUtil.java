@@ -267,15 +267,17 @@ public class HandUtil {
 
 		
 		List<Card> cardValuesList = new ArrayList<>(cards);
-
+		List<Runnable> runnables = new ArrayList<>();
 		Collections.sort(cardValuesList);
 		for (Card card : cardValuesList) {
 			if (card.getValue() == 1) {
-				cardValuesList.remove(card);
-
-				cardValuesList.add(0, card);
+				runnables.add(() -> {
+					cardValuesList.remove(card);
+					cardValuesList.add(0, card);
+				});
 			}
 		}
+		runnables.stream().forEach(Runnable::run);
 		return cardValuesList;
 	}
 

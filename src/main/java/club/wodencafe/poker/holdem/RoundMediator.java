@@ -1,13 +1,17 @@
 package club.wodencafe.poker.holdem;
 
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import com.google.common.util.concurrent.AbstractScheduledService;
 
@@ -23,8 +27,9 @@ import io.reactivex.subjects.PublishSubject;
  * @author wodencafe
  */
 public class RoundMediator implements AutoCloseable, Consumer<Command> {
+	private ScheduledFuture<?> future = null;
 	private ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor();
-	private List<PlayerRoundData> players = new ArrayList<>();
+	private List<PlayerRoundData> playerData = new ArrayList<>();
 
 	private PhaseManager phaseManager;
 
@@ -41,16 +46,29 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 	// Keep track of these just in case
 	private List<Card> burnCards = new ArrayList<>();
 
-	public List<PlayerRoundData> getPlayers() {
-		return players;
+	public List<PlayerRoundData> getPlayerData() {
+		return playerData;
+	}
+	
+	public List<Player> getPlayers() {
+		return playerData.stream().map(x -> x.get()).collect(Collectors.toList());
 	}
 
-	private RoundMediator(Player initialPlayer) {
+	private void cancelCurrentTurn() {
+		if (future != null && !future.isCancelled() && !future.isDone()) {
+			future.cancel(true);
+		}
+	}
+	private AtomicLong pot = new AtomicLong();
+	
+	public RoundMediator(Player initialPlayer) {
 		phaseManager = new PhaseManager();
 
 		phaseManager.onNewPhase().subscribe(this::handleNewPhase);
 
 		deck = Deck.generateDeck(false);
+		
+		phaseManager.run();
 
 		addPlayer(initialPlayer);
 	}
@@ -64,16 +82,26 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 		// TODO: Split the pot up here
 	}
 
+	public List<Player> getActivePlayers() {
+		return playerData.stream()
+			.filter(x -> !x.isFolded())
+			.filter(x -> !x.isShown())
+			.map(x -> x.get())
+			.collect(Collectors.toList());
+	}
+	
 	private void handleNewPhase(Phase newPhase) {
 		
 		if (newPhase == Phase.AWAITING_PLAYERS) {
+			
+			service.schedule(() -> phaseManager.run(), 30, TimeUnit.SECONDS);
 			generalMessage.onNext("Awaiting players, type " + WodData.commandChar + CommandType.DEAL.getCommandName()
 					+ " to be dealt into the match");
 
 		}
 		if (newPhase == Phase.HOLE) {
 
-			generalMessage.onNext("Dealing cards to " + players.size() + " players.");
+			generalMessage.onNext("Dealing cards to " + playerData.size() + " players.");
 
 			dealAllPlayersIn();
 		} else if (newPhase == Phase.FLOP) {
@@ -82,7 +110,7 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 			addCommunityCards(3);
 
 			String message = String.valueOf(communityCards.get(0)) + String.valueOf(communityCards.get(1))
-					+ String.valueOf(communityCards.get(2)) + " on the flop. Remaining players: " + players.size();
+					+ String.valueOf(communityCards.get(2)) + " on the flop. Remaining players: " + playerData.size();
 
 			generalMessage.onNext(message);
 		} else if (newPhase == Phase.TURN) {
@@ -91,7 +119,7 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 
 			String message = String.valueOf(communityCards.get(0)) + String.valueOf(communityCards.get(1))
 					+ String.valueOf(communityCards.get(2)) + String.valueOf(communityCards.get(3))
-					+ " with the turn card. Remaining players: " + players.size();
+					+ " with the turn card. Remaining players: " + playerData.size();
 
 			generalMessage.onNext(message);
 
@@ -101,19 +129,39 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 
 			String message = String.valueOf(communityCards.get(0)) + String.valueOf(communityCards.get(1))
 					+ String.valueOf(communityCards.get(2)) + String.valueOf(communityCards.get(3))
-					+ String.valueOf(communityCards.get(4)) + " with the river. Remaining players: " + players.size();
+					+ String.valueOf(communityCards.get(4)) + " with the river. Remaining players: " + playerData.size();
 
 			generalMessage.onNext(message);
+		}
+		if (newPhase.isBetPhase()) {
+			bettingRound = Optional.of(new BettingRound(playerData));
+			long potAmount = bettingRound.get().onBettingRoundComplete().blockingFirst();
+			
+			pot.addAndGet(potAmount);
+			
+			phaseManager.run();
 		}
 		if (newPhase == Phase.SHOWDOWN) {
 
 			StringBuilder sb = new StringBuilder("Showdown: ");
-			for (PlayerRoundData player : players) {
+			for (PlayerRoundData player : playerData) {
 				sb.append(player.get() + ", ");
 			}
 			sb.append("you can " + WodData.commandChar + "show or " + WodData.commandChar + " fold");
 			generalMessage.onNext(sb.toString());
 		}
+	}
+	
+	private void showdown() {
+		List<PlayerRoundData> shownPlayers = getShownPlayerData();
+		
+		
+	}
+	
+	private List<PlayerRoundData> getShownPlayerData() {
+		return getPlayerData().stream()
+			.filter(PlayerRoundData::isShown)
+			.collect(Collectors.toList());
 	}
 
 	/*@Override
@@ -162,7 +210,7 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 		if (phase == Phase.AWAITING_PLAYERS) {
 			// TODO: Make sure the player has money
 			if (commandType == CommandType.DEAL) {
-				if (!(players.size() > 12)) {
+				if (!(playerData.size() > 12)) {
 					addPlayer(player);
 				} else {
 					// TODO: Error Message, can't have more players.
@@ -206,14 +254,24 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 	private void showPlayer(Player player) {
 		PlayerRoundData data = getPlayerDataByPlayer(player);
 		
-		
+		data.setShown(true);
 	}
+	private void peekPlayer(PlayerRoundData data) {
+		StringBuilder sb = new StringBuilder();
+		for (Card card : data.getCards()) {
+			sb.append(card);
+		}
+		playerMessage.onNext(new AbstractMap.SimpleEntry<>(data.get(), "Your cards: " + sb.toString()));
+	}
+	
 	private void dealAllPlayersIn() {
-		for (PlayerRoundData playerRoundData : players) {
+		for (PlayerRoundData playerRoundData : playerData) {
 			Optional<Card> optionalCard = deck.get();
 			Optional<Card> optionalCard2 = deck.get();
 			if (optionalCard.isPresent() && optionalCard2.isPresent()) {
 				playerRoundData.deal(optionalCard.get(), optionalCard2.get());
+				
+				peekPlayer(playerRoundData);
 			} else {
 				// TODO: Error, we are out of cards.
 			}
@@ -221,7 +279,7 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 	}
 
 	private PlayerRoundData getPlayerDataByPlayer(Player player) {
-		return players.stream().filter(x -> x.get().equals(player)).findFirst().orElse(null);
+		return playerData.stream().filter(x -> x.get().equals(player)).findFirst().orElse(null);
 	}
 
 	private void addPlayer(Player player) {
@@ -229,7 +287,7 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 			// TODO: Should the cards be shown to the player here?
 			PlayerRoundData data = new PlayerRoundData(player);
 
-			players.add(data);
+			playerData.add(data);
 		}
 	}
 
@@ -252,6 +310,6 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 	}
 
 	private boolean isPlayerParticipating(Player player) {
-		return players.stream().map(x -> x.get()).map(x -> x.getIrcName()).anyMatch(x -> x.equals(player.getIrcName()));
+		return playerData.stream().map(x -> x.get()).map(x -> x.getIrcName()).anyMatch(x -> x.equals(player.getIrcName()));
 	}
 }

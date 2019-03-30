@@ -29,6 +29,9 @@ public class PlayerRoundData implements AutoCloseable {
 			}
 		}
 	}
+	public void setShown(boolean shown) {
+		this.shown = shown;
+	}
 	private boolean shown = false;
 	public boolean isShown() {
 		return shown;
