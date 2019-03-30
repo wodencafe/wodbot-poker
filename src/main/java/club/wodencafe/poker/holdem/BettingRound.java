@@ -10,6 +10,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import com.google.common.util.concurrent.AbstractIdleService;
+
 import club.wodencafe.bot.WodData;
 import club.wodencafe.data.Player;
 import io.reactivex.Observable;
@@ -22,7 +24,8 @@ import io.reactivex.subjects.PublishSubject;
  * @author wodencafe
  *
  */
-public class BettingRound {
+public class BettingRound extends AbstractIdleService implements AutoCloseable {
+	private boolean closed = false;
 	
 	private ScheduledFuture<?> future = null;
 	
@@ -30,20 +33,28 @@ public class BettingRound {
 	
 	private List<PlayerRoundData> players;
 	
-	private PotManager potManager = new PotManager(players);
+	private PotManager potManager;
 	
 	private List<Command> previousCommands = new ArrayList<>();
 
 	private PublishSubject<PlayerRoundData> playerAutoFold = PublishSubject.create();
+
+	private PublishSubject<PlayerRoundData> playerNewTurn = PublishSubject.create();
 	
-	private PublishSubject<Void> bettingRoundComplete = PublishSubject.create();
-	
-	public Observable<Void> onBettingRoundComplete() {
+	private PublishSubject<Long> bettingRoundComplete = PublishSubject.create();
+
+	public Observable<Long> onBettingRoundComplete() {
 		return bettingRoundComplete;
+	}
+	
+	public Observable<PlayerRoundData> onPlayerNewTurn() {
+		return playerNewTurn;
 	}
 	
 	public BettingRound(List<PlayerRoundData> players) {
 		this.players = players;
+		
+		potManager = new PotManager(players);
 	}
 	
 	private List<Command> getPreviousCommandsWithoutFolds() {
@@ -53,7 +64,7 @@ public class BettingRound {
 		return previousCommandsWithoutFolds;
 	}
 	
-	private Player getCurrentPlayer() {
+	public Player getCurrentPlayer() {
 
 		List<Command> previousCommandsWithoutFolds = getPreviousCommandsWithoutFolds();
 		
@@ -143,17 +154,31 @@ public class BettingRound {
 		}
 	}
 	private void turnComplete() {
+		cancelCurrentTurn();
+		if (isAllPlayed()) {
+			stopAsync();
+		}
+		else {
+			newTurn();
+		}
+	}
+
+	private void cancelCurrentTurn() {
 		if (future != null && !future.isCancelled() && !future.isDone()) {
 			future.cancel(true);
 		}
-		if (isAllPlayed()) {
-			bettingRoundComplete.onNext(null);
-		}
-		else {
-			Player player = getCurrentPlayer();
-			PlayerRoundData data = getPlayerRoundData(player);
-			future = service.schedule(() -> playerAutoFold.onNext(data), WodData.betTimeout, TimeUnit.SECONDS);
-		}
+	}
+	
+	private void timerExpired(PlayerRoundData data) {
+		playerAutoFold.onNext(data);
+		turnComplete();
+	}
+
+	private void newTurn() {
+		Player player = getCurrentPlayer();
+		PlayerRoundData data = getPlayerRoundData(player);
+		playerNewTurn.onNext(data);
+		future = service.schedule(() -> timerExpired(data), WodData.betTimeout, TimeUnit.SECONDS);
 	}
 
 	private PlayerRoundData getCurrentPlayerRoundData(Player player) {
@@ -216,6 +241,34 @@ public class BettingRound {
 	private boolean isAllPlayed() {
 		return getPlayersFromCommands().containsAll(getActivePlayers()) &&
 			potManager.isPotSatisfied();
+	}
+
+	@Override
+	protected void startUp() throws Exception {
+		newTurn();
+	}
+
+	@Override
+	protected void shutDown() throws Exception {
+		
+		close();
+	}
+
+	@Override
+	public void close() throws Exception {
+		if (!closed) {
+			closed = true;
+			
+			if (isRunning()) {
+				stopAsync();
+			}
+			
+			bettingRoundComplete.onNext(potManager.getTotalPot());
+			
+			bettingRoundComplete.onComplete();
+			
+			playerAutoFold.onComplete();
+		}
 	}
 	
 	

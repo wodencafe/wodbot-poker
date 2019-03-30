@@ -13,7 +13,7 @@ import javax.persistence.Table;
 public class Player extends BusinessEntity {
 
 	@Column
-	private Long money;
+	private Long money = 0L;
 	
 	@Column
 	private String ircName;
