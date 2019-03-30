@@ -11,12 +11,12 @@ import club.wodencafe.poker.cards.HandUtil;
 public class Hand implements Comparable<Hand> {
 
 	private List<Card> cards;
-	
+
 	private HandType handType;
-	
+
 	public Hand(List<Card> cards, HandType handType) {
 		this.cards = cards;
-		
+
 		this.handType = handType;
 	}
 
@@ -27,69 +27,77 @@ public class Hand implements Comparable<Hand> {
 	public HandType getHandType() {
 		return handType;
 	}
-	
+
 	public List<Card> getNonHandCards() {
 		List<Card> cards = new ArrayList<>(getCards());
-		
+
 		cards.removeAll(getHandTypeCards());
-		
+
 		return cards;
 	}
-	
+
 	public List<Card> getHandTypeCards() {
 		int count;
-		
+
 		switch (getHandType()) {
-			case STRAIGHT:
-			case FLUSH:
-			case STRAIGHT_FLUSH:
-			case FULL_HOUSE:
-			case ROYAL_FLUSH: {
-				count = 5;
-			}
+		case STRAIGHT:
+		case FLUSH:
+		case STRAIGHT_FLUSH:
+		case FULL_HOUSE:
+		case ROYAL_FLUSH: {
+			count = 5;
+		}
 			break;
-			case TWO_PAIR:
-			case FOUR: {
-				count = 4;
-			}
+		case TWO_PAIR:
+		case FOUR: {
+			count = 4;
+		}
 			break;
-			case TRIPS: {
-				count = 3;
-			}
+		case TRIPS: {
+			count = 3;
+		}
 			break;
-			case PAIR: {
-				count = 2;
-			}
-			case HIGH: 
-			default: {
-				count = 1;
-			}
+		case PAIR: {
+			count = 2;
+		}
+		case HIGH:
+		default: {
+			count = 1;
+		}
 			break;
 		}
-		
-		return getCards().stream()
-			.limit(count)
-			.collect(Collectors.toList());
+
+		return getCards().stream().limit(count).collect(Collectors.toList());
 	}
 
 	@Override
 	public int compareTo(Hand arg0) {
 		if (this.handType != arg0.handType) {
 			return this.handType.getValue() - arg0.handType.getValue();
-		}
-		else {
-			
+		} else {
+
 			List<Card> sortedCards = HandUtil.getCardsSortedAceHigh(cards);
 			List<Card> otherSortedCards = HandUtil.getCardsSortedAceHigh(arg0.getCards());
 			for (int x = 0; x < getCards().size(); x++) {
 				Card card = sortedCards.get(x);
 				Card otherCard = otherSortedCards.get(x);
-				int cardCompare = (card.getValue() == 1 ? 14 : card.getValue()) - (otherCard.getValue() == 1 ? 14 : otherCard.getValue());
+				int cardCompare = (card.getValue() == 1 ? 14 : card.getValue())
+						- (otherCard.getValue() == 1 ? 14 : otherCard.getValue());
 				if (cardCompare != 0) {
 					return cardCompare;
 				}
 			}
 		}
 		return 0;
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		for (Card card : cards) {
+			sb.append(card);
+		}
+		sb.append(" (" + String.valueOf(handType).toLowerCase() + ")");
+		return sb.toString();
 	}
 }

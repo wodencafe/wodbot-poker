@@ -1,9 +1,7 @@
 package club.wodencafe.poker.cards;
 
-import static java.util.Objects.*;
 import static club.wodencafe.poker.cards.Suit.*;
 import static club.wodencafe.poker.cards.Card.*;
-import static org.junit.Assert.*;
 import static club.wodencafe.poker.cards.HandUtil.*;
 
 import java.util.Arrays;
