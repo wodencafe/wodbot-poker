@@ -39,19 +39,31 @@ public class PlayerRoundData implements AutoCloseable {
 	}
 	@Override
 	public String toString() {
-		String message =
-			String.valueOf(cards.get(0)) + 
-			String.valueOf(cards.get(1)) +
-			" - " + player.getIrcName();
-		
-		if (isFolded()) {
-			message = message + " (folded)";
+		StringBuilder messageBuilder = new StringBuilder();
+		for (Card card : cards) {
+			messageBuilder.append(card);
 		}
-		
-		return message;
+		if (!cards.isEmpty()) {
+			messageBuilder.append(" - ");
+		}
+		messageBuilder.append(player);
+		if (isFolded()) {
+			messageBuilder.append(" (folded)");
+		}
+		messageBuilder.append("[" + System.identityHashCode(this) + "]");
+		return messageBuilder.toString();
 	}
 	@Override
 	public void close() throws Exception {
 		folded = true;
+	}
+	
+	public void fold() {
+		try {
+			close();
+		}
+		catch (Exception e) {
+			
+		}
 	}
 }

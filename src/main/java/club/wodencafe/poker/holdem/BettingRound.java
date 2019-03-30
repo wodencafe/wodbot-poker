@@ -16,6 +16,7 @@ import club.wodencafe.bot.WodData;
 import club.wodencafe.data.Player;
 import io.reactivex.Observable;
 import io.reactivex.subjects.PublishSubject;
+import io.reactivex.subjects.ReplaySubject;
 
 /**
  * This class should be instantiated for each round of betting,
@@ -41,8 +42,14 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 
 	private PublishSubject<PlayerRoundData> playerNewTurn = PublishSubject.create();
 	
-	private PublishSubject<Long> bettingRoundComplete = PublishSubject.create();
+	private ReplaySubject<Long> bettingRoundComplete = ReplaySubject.create();
+	
+	private int betTimeout;
 
+	List<Command> getPreviousCommands() {
+		return previousCommands;
+	}
+	
 	public Observable<Long> onBettingRoundComplete() {
 		return bettingRoundComplete;
 	}
@@ -50,11 +57,17 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 	public Observable<PlayerRoundData> onPlayerNewTurn() {
 		return playerNewTurn;
 	}
-	
-	public BettingRound(List<PlayerRoundData> players) {
+
+	public BettingRound(List<PlayerRoundData> players, int betTimeout) {
 		this.players = players;
 		
-		potManager = new PotManager(players);
+		this.betTimeout = betTimeout;
+		
+		potManager = new PotManager(this);
+	}
+	
+	public BettingRound(List<PlayerRoundData> players) {
+		this(players, WodData.betTimeout);
 	}
 	
 	private List<Command> getPreviousCommandsWithoutFolds() {
@@ -62,6 +75,10 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 				.filter(x -> x.getCommandType() != CommandType.FOLD)
 				.collect(Collectors.toList());
 		return previousCommandsWithoutFolds;
+	}
+	
+	public boolean isPotSatisfied() {
+		return potManager.isPotSatisfied();
 	}
 	
 	public Player getCurrentPlayer() {
@@ -100,6 +117,10 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 			
 			List<Command> previousCommandsWithoutFolds = getPreviousCommandsWithoutFolds();
 			
+			if (commandType == CommandType.FOLD) {
+				fold(command.getPlayer());
+			}
+			else
 			if (previousCommandsWithoutFolds.isEmpty()) {
 				// Applicable commands are Check, Bet, (Fold)
 				if (commandType == CommandType.CHECK) {
@@ -170,6 +191,7 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 	}
 	
 	private void timerExpired(PlayerRoundData data) {
+		fold(data.get());
 		playerAutoFold.onNext(data);
 		turnComplete();
 	}
@@ -178,7 +200,7 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 		Player player = getCurrentPlayer();
 		PlayerRoundData data = getPlayerRoundData(player);
 		playerNewTurn.onNext(data);
-		future = service.schedule(() -> timerExpired(data), WodData.betTimeout, TimeUnit.SECONDS);
+		future = service.schedule(() -> timerExpired(data), betTimeout, TimeUnit.SECONDS);
 	}
 
 	private PlayerRoundData getCurrentPlayerRoundData(Player player) {
@@ -188,7 +210,15 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 	private PlayerRoundData getPlayerRoundData(Player player) {
 		return getCurrentPlayerRoundData(getCurrentPlayer());
 	}
-
+	private void fold(Player player) {
+		Command callCommand = new Command(CommandType.FOLD, Optional.empty(), player);
+		
+		previousCommands.add(callCommand);
+		
+		getPlayerRoundData(player).fold();
+		
+		turnComplete();
+	}
 	private void check(Player player) {
 		Command checkCommand = new Command(CommandType.CHECK, Optional.empty(), player);
 		
@@ -225,8 +255,12 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 		
 		turnComplete();
 	}
+	
+	public List<PlayerRoundData> getPlayers() {
+		return players;
+	}
 
-	private List<Player> getActivePlayers() {
+	public List<Player> getActivePlayers() {
 		return players.stream()
 			.filter(x -> !x.isFolded())
 			.filter(x -> !x.isShown())
@@ -239,8 +273,9 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 			.collect(Collectors.toList());
 	}
 	private boolean isAllPlayed() {
-		return getPlayersFromCommands().containsAll(getActivePlayers()) &&
-			potManager.isPotSatisfied();
+		return ((
+			getPlayersFromCommands().containsAll(getActivePlayers()) &&
+			potManager.isPotSatisfied()) || getActivePlayers().size() == 1);
 	}
 
 	@Override
@@ -258,6 +293,8 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 	public void close() throws Exception {
 		if (!closed) {
 			closed = true;
+			
+			cancelCurrentTurn();
 			
 			if (isRunning()) {
 				stopAsync();

@@ -7,6 +7,8 @@ import javax.persistence.Entity;
 import javax.persistence.PrimaryKeyJoinColumn;
 import javax.persistence.Table;
 
+import club.wodencafe.poker.cards.Card;
+
 @Entity
 @Table(name="PLAYER")
 @PrimaryKeyJoinColumn
@@ -40,5 +42,13 @@ public class Player extends BusinessEntity {
 			throw new RuntimeException("Can't add negative money");
 		}
 		this.money+=money;
+	}
+	@Override
+	public String toString() {
+		StringBuilder messageBuilder = new StringBuilder();
+		messageBuilder.append(getIrcName());
+		messageBuilder.append("($" + getMoney() + ") "); 
+		messageBuilder.append("[" + System.identityHashCode(this) + "]");
+		return messageBuilder.toString();
 	}
 }
