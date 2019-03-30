@@ -1,17 +1,19 @@
 package club.wodencafe.poker.holdem;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Objects;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import com.google.common.util.concurrent.AbstractScheduledService;
+
+import club.wodencafe.bot.WodData;
 import club.wodencafe.data.Player;
+import io.reactivex.Observable;
+import io.reactivex.subjects.PublishSubject;
 
 /**
  * This class should be instantiated for each round of betting,
@@ -22,6 +24,8 @@ import club.wodencafe.data.Player;
  */
 public class BettingRound {
 	
+	private ScheduledFuture<?> future = null;
+	
 	private ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor();
 	
 	private List<PlayerRoundData> players;
@@ -29,6 +33,12 @@ public class BettingRound {
 	private PotManager potManager = new PotManager(players);
 	
 	private List<Command> previousCommands = new ArrayList<>();
+	
+	private PublishSubject<PlayerRoundData> playerAutoFold = PublishSubject.create();
+	
+	public Observable<PlayerRoundData> onPlayerAutoFold() {
+		return playerAutoFold;
+	}
 	
 	public BettingRound(RoundMediator roundMediator) {
 		this.players = roundMediator.getPlayers();
@@ -130,6 +140,19 @@ public class BettingRound {
 			}
 		}
 	}
+	private void turnComplete() {
+		if (future != null && !future.isCancelled() && !future.isDone()) {
+			future.cancel(true);
+		}
+		if (isAllPlayed()) {
+			
+		}
+		else {
+			Player player = getCurrentPlayer();
+			PlayerRoundData data = getPlayerRoundData(player);
+			future = service.schedule(() -> playerAutoFold.onNext(data), WodData.betTimeout, TimeUnit.SECONDS);
+		}
+	}
 
 	private PlayerRoundData getCurrentPlayerRoundData(Player player) {
 		return players.stream().filter(x -> x.get().equals(player)).findAny().orElse(null);
@@ -145,6 +168,8 @@ public class BettingRound {
 		previousCommands.add(checkCommand);
 		
 		potManager.check(getPlayerRoundData(player));
+		
+		turnComplete();
 	}
 	private void bet(Player player, long amount) {
 		Command betCommand = new Command(CommandType.BET, Optional.of(amount), player);
@@ -152,6 +177,8 @@ public class BettingRound {
 		previousCommands.add(betCommand);
 
 		potManager.bet(getPlayerRoundData(player), amount);
+		
+		turnComplete();
 	}
 	private void call(Player player) {
 		Command callCommand = new Command(CommandType.CALL, Optional.empty(), player);
@@ -159,6 +186,8 @@ public class BettingRound {
 		previousCommands.add(callCommand);
 		
 		potManager.call(getPlayerRoundData(player));
+		
+		turnComplete();
 	}
 	private void raise(Player player, long amount) {
 		Command raiseCommand = new Command(CommandType.RAISE, Optional.of(amount), player);
@@ -166,6 +195,8 @@ public class BettingRound {
 		previousCommands.add(raiseCommand);
 		
 		potManager.raise(getPlayerRoundData(player), amount);
+		
+		turnComplete();
 	}
 
 	private List<Player> getActivePlayers() {
