@@ -35,7 +35,7 @@ public class BettingRoundTest {
 			
 			Assert.assertEquals(amount, 0);
 
-			Assert.assertTrue(bettingRound.isPotSatisfied());
+			Assert.assertTrue(bettingRound.isRoundComplete());
 		}
 	}
 	
@@ -63,13 +63,13 @@ public class BettingRoundTest {
 			
 			Assert.assertEquals(bettingRound.getCurrentPlayer(), player2);
 			
-			Assert.assertFalse(bettingRound.isPotSatisfied());
+			Assert.assertFalse(bettingRound.isRoundComplete());
 			
 			command = new Command(CommandType.BET, 30, player2);
 			
 			bettingRound.handleCommand(command);
 			
-			Assert.assertFalse(bettingRound.isPotSatisfied());
+			Assert.assertFalse(bettingRound.isRoundComplete());
 			
 			Assert.assertEquals(bettingRound.getCurrentPlayer(), player1);
 			
@@ -79,9 +79,9 @@ public class BettingRoundTest {
 			
 			long amount = bettingRound.onBettingRoundComplete().blockingFirst();
 			
-			Assert.assertEquals(amount, 0);
+			Assert.assertEquals(amount, 60);
 			
-			Assert.assertTrue(bettingRound.isPotSatisfied());
+			Assert.assertTrue(bettingRound.isRoundComplete());
 		}
 	}
 	
@@ -109,13 +109,13 @@ public class BettingRoundTest {
 	
 			Assert.assertEquals(bettingRound.getCurrentPlayer(), player2);
 			
-			Assert.assertFalse(bettingRound.isPotSatisfied());
+			Assert.assertFalse(bettingRound.isRoundComplete());
 			
 			command = new Command(CommandType.CHECK, player2);
 			
 			bettingRound.handleCommand(command);
 			
-			Assert.assertTrue(bettingRound.isPotSatisfied());
+			Assert.assertTrue(bettingRound.isRoundComplete());
 			
 			Long potSize = bettingRound.onBettingRoundComplete().blockingFirst();
 			
