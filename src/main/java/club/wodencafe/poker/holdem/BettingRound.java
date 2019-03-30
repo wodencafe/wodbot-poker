@@ -204,14 +204,24 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 	}
 
 	private PlayerRoundData getCurrentPlayerRoundData(Player player) {
-		return players.stream().filter(x -> x.get().equals(player)).findAny().orElse(null);
+		for (PlayerRoundData data : players) {
+			System.out.println("Comparing " + data.get() + " with " + player);
+			if (data.get() == player) {
+				System.out.println("Match between " + data.get() + " and " + player);
+				return data;
+			}
+		}
+		return null;
 	}
 
 	private PlayerRoundData getPlayerRoundData(Player player) {
-		return getCurrentPlayerRoundData(getCurrentPlayer());
+		System.out.println("getPlayerRoundData(" + player.toString() + ")");
+		PlayerRoundData data = getCurrentPlayerRoundData(player);
+		System.out.println("getPlayerRoundData(" + player.toString() + ") returning " + data);
+		return data;
 	}
 	private void fold(Player player) {
-		Command callCommand = new Command(CommandType.FOLD, Optional.empty(), player);
+		Command callCommand = new Command(CommandType.FOLD, player);
 		
 		previousCommands.add(callCommand);
 		
@@ -220,7 +230,7 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 		turnComplete();
 	}
 	private void check(Player player) {
-		Command checkCommand = new Command(CommandType.CHECK, Optional.empty(), player);
+		Command checkCommand = new Command(CommandType.CHECK, player);
 		
 		previousCommands.add(checkCommand);
 		
@@ -228,17 +238,19 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 		
 		turnComplete();
 	}
-	private void bet(Player player, long amount) {
-		Command betCommand = new Command(CommandType.BET, Optional.of(amount), player);
+	private void bet(final Player player, long amount) {
+		Command betCommand = new Command(CommandType.BET, amount, player);
 		
 		previousCommands.add(betCommand);
+		
+		PlayerRoundData data = getPlayerRoundData(player);
 
-		potManager.bet(getPlayerRoundData(player), amount);
+		potManager.bet(data, amount);
 		
 		turnComplete();
 	}
 	private void call(Player player) {
-		Command callCommand = new Command(CommandType.CALL, Optional.empty(), player);
+		Command callCommand = new Command(CommandType.CALL, player);
 		
 		previousCommands.add(callCommand);
 		
@@ -247,7 +259,7 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 		turnComplete();
 	}
 	private void raise(Player player, long amount) {
-		Command raiseCommand = new Command(CommandType.RAISE, Optional.of(amount), player);
+		Command raiseCommand = new Command(CommandType.RAISE, amount, player);
 		
 		previousCommands.add(raiseCommand);
 		

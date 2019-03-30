@@ -8,11 +8,17 @@ public class Command {
 	private CommandType commandType;
 	private Optional<Long> data;
 	private Player player;
-	
-	public Command(CommandType commandType, Optional<Long> data, Player player) {
+
+	public Command(CommandType commandType, long data, Player player) {
 		super();
 		this.commandType = commandType;
-		this.data = data;
+		this.data = Optional.of(data);
+		this.player = player;
+	}
+	public Command(CommandType commandType, Player player) {
+		super();
+		this.commandType = commandType;
+		this.data = Optional.empty();
 		this.player = player;
 	}
 	public CommandType getCommandType() {

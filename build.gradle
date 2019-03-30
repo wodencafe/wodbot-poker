@@ -39,6 +39,10 @@ dependencies {
 
     // Use JUnit test framework
     testImplementation 'junit:junit:4.12'
+    
+    // https://mvnrepository.com/artifact/org.awaitility/awaitility
+	testCompile group: 'org.awaitility', name: 'awaitility', version: '3.1.6'
+    
 }
 
 // In this section you declare where to find the dependencies of your project
