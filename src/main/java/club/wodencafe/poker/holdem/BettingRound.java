@@ -77,10 +77,6 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 		return previousCommandsWithoutFolds;
 	}
 	
-	private boolean isPotSatisfied() {
-		return potManager.isPotSatisfied();
-	}
-	
 	public Player getCurrentPlayer() {
 
 		List<Command> previousCommandsWithoutFolds = getPreviousCommandsWithoutFolds();
@@ -307,6 +303,10 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 			closed = true;
 			
 			cancelCurrentTurn();
+
+			if (!service.isShutdown()) {
+				service.shutdown();
+			}
 			
 			if (isRunning()) {
 				stopAsync();
@@ -317,6 +317,9 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 			bettingRoundComplete.onComplete();
 			
 			playerAutoFold.onComplete();
+			
+			playerNewTurn.onComplete();
+			
 		}
 	}
 	
