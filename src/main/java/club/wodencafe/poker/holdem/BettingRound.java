@@ -33,15 +33,17 @@ public class BettingRound {
 	private PotManager potManager = new PotManager(players);
 	
 	private List<Command> previousCommands = new ArrayList<>();
-	
+
 	private PublishSubject<PlayerRoundData> playerAutoFold = PublishSubject.create();
 	
-	public Observable<PlayerRoundData> onPlayerAutoFold() {
-		return playerAutoFold;
+	private PublishSubject<Void> bettingRoundComplete = PublishSubject.create();
+	
+	public Observable<Void> onBettingRoundComplete() {
+		return bettingRoundComplete;
 	}
 	
-	public BettingRound(RoundMediator roundMediator) {
-		this.players = roundMediator.getPlayers();
+	public BettingRound(List<PlayerRoundData> players) {
+		this.players = players;
 	}
 	
 	private List<Command> getPreviousCommandsWithoutFolds() {
@@ -145,7 +147,7 @@ public class BettingRound {
 			future.cancel(true);
 		}
 		if (isAllPlayed()) {
-			
+			bettingRoundComplete.onNext(null);
 		}
 		else {
 			Player player = getCurrentPlayer();
