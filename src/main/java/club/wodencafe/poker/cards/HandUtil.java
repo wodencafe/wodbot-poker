@@ -40,7 +40,7 @@ public class HandUtil {
 					handCards.addAll(getStraightFlush(cardValues));
 				}
 					break;
-				case FOUR: {
+				case FOUR_OF_A_KIND: {
 					handCards.addAll(getQuads(cardValues));
 				}
 					break;
@@ -56,7 +56,7 @@ public class HandUtil {
 					handCards.addAll(getStraight(cardValues));
 				}
 					break;
-				case TRIPS: {
+				case THREE_OF_A_KIND: {
 					handCards.addAll(getTrips(cardValues));
 				}
 					break;
@@ -82,7 +82,7 @@ public class HandUtil {
 		}
 		if (hand == null) {
 			handCards = cardValues.stream().limit(5).collect(Collectors.toList());
-			hand = new Hand(handCards, HandType.HIGH);
+			hand = new Hand(handCards, HandType.HIGH_CARD);
 		}
 		return hand;
 	}

@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.commons.text.WordUtils;
+
 import club.wodencafe.poker.cards.Card;
 import club.wodencafe.poker.cards.HandType;
 import club.wodencafe.poker.cards.HandUtil;
@@ -49,18 +51,18 @@ public class Hand implements Comparable<Hand> {
 		}
 			break;
 		case TWO_PAIR:
-		case FOUR: {
+		case FOUR_OF_A_KIND: {
 			count = 4;
 		}
 			break;
-		case TRIPS: {
+		case THREE_OF_A_KIND: {
 			count = 3;
 		}
 			break;
 		case PAIR: {
 			count = 2;
 		}
-		case HIGH:
+		case HIGH_CARD:
 		default: {
 			count = 1;
 		}
@@ -97,7 +99,7 @@ public class Hand implements Comparable<Hand> {
 		for (Card card : cards) {
 			sb.append(card);
 		}
-		sb.append(" (" + String.valueOf(handType).toLowerCase() + ")");
+		sb.append(" (" + WordUtils.capitalizeFully(String.valueOf(handType).replace("_", " ")) + ")");
 		return sb.toString();
 	}
 }

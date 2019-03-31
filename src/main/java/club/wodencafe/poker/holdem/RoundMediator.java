@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executors;
@@ -16,6 +17,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+
+import org.apache.commons.text.WordUtils;
 
 import club.wodencafe.bot.WodData;
 import club.wodencafe.data.Player;
@@ -52,6 +55,16 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 	private List<Card> communityCards = new ArrayList<>();
 
 	private AtomicLong pot = new AtomicLong();
+
+	public long getCurrentPotSize() {
+		long potSize = pot.get();
+
+		if (bettingRound.isPresent()) {
+			potSize += bettingRound.get().getPotSize();
+		}
+		return potSize;
+	}
+
 	// Keep track of these just in case
 	private List<Card> burnCards = new ArrayList<>();
 
@@ -152,24 +165,24 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 				burn(1);
 				addCommunityCards(3);
 
-				message.append(
-						getCommunityCardString() + " on the flop. Remaining players: " + playerData.size() + ".");
+				message.append(getCommunityCardString() + " on the flop.");
 
 			} else if (newPhase == Phase.TURN) {
 				burn(1);
 				addCommunityCards(1);
 
-				message.append(getCommunityCardString() + " with the turn card. Remaining players: " + playerData.size()
-						+ ".");
+				message.append(getCommunityCardString() + " with the turn card.");
 
 			} else if (newPhase == Phase.RIVER) {
 				burn(1);
 				addCommunityCards(1);
 
-				message.append(
-						getCommunityCardString() + " with the river. Remaining players: " + playerData.size() + ".");
+				message.append(getCommunityCardString() + " with the river.");
 			}
 			if (newPhase.isBetPhase()) {
+
+				message.append(" Remaining players: " + playerData.size() + ". Pot Size: $" + pot.get() + ".");
+
 				PlayerRoundData player = playerData.iterator().next();
 
 				message.append(" " + player.get().getIrcName() + "'s turn.");
@@ -179,8 +192,28 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 				bettingRound = Optional.of(bettingRoundValue);
 				bettingRoundValue.onPlayerCommand().subscribe(data ->
 				{
-					generalMessage.onNext(data.getKey().getIrcName() + " "
-							+ data.getValue().getCommandType().toString().toLowerCase() + "s.");
+					StringBuilder sb = new StringBuilder();
+					sb.append(data.getKey().getIrcName() + " "
+							+ WordUtils.capitalizeFully(data.getValue().getCommandType().toString()) + "s"
+							+ (data.getValue().getData().isEmpty() ? "."
+									: ((data.getValue().getCommandType() == CommandType.RAISE ? " to " : " ") + "$"
+											+ String.valueOf(data.getValue().getData().get())) + "."));
+					long potSize = getCurrentPotSize();
+
+					if (potSize > 0) {
+						sb.append(" Current pot size is $" + potSize + ".");
+					}
+
+					Entry<Player, Player> currentAndPreviousPlayer = bettingRoundValue.getCurrentAndPreviousPlayer();
+
+					Player currentPlayer = currentAndPreviousPlayer.getKey();
+					if (currentPlayer != null) {
+						sb.append(" " + currentAndPreviousPlayer.getKey().getIrcName() + "'s turn.");
+					} else {
+						sb.append(" " + WordUtils.capitalizeFully(newPhase.toString()) + " round complete.");
+					}
+
+					generalMessage.onNext(sb.toString());
 				});
 				bettingRoundValue.onBettingRoundComplete().subscribe(potAmount ->
 				{
@@ -192,11 +225,12 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 			}
 			if (newPhase == Phase.SHOWDOWN) {
 				future = service.schedule(() -> showdown(), 30, TimeUnit.SECONDS);
-				StringBuilder sb = new StringBuilder("Showdown: ");
+				StringBuilder sb = new StringBuilder(
+						"Showdown, Remaining players: " + playerData.size() + ". Pot Size: $" + pot.get() + ". ");
 				for (PlayerRoundData player : playerData) {
 					sb.append(player.get().getIrcName() + ", ");
 				}
-				sb.append("you can " + WodData.commandChar + "show or " + WodData.commandChar + "fold");
+				sb.append("you can " + WodData.commandChar + "show or " + WodData.commandChar + "fold.");
 				message.append(sb.toString());
 			}
 		}
@@ -225,11 +259,14 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 		if (playerRoundData.size() == 1) {
 			PlayerRoundData winningPlayerData = playerRoundData.iterator().next();
 
-			sb.append(
-					"Winner: " + winningPlayerData.get().getIrcName() + " with " + highestHands.get(winningPlayerData));
+			sb.append("Winner: " + winningPlayerData.get().getIrcName() + " with " + highestHands.get(winningPlayerData)
+					+ ", winning $" + getCurrentPotSize() + ".");
+
+			winningPlayerData.get().addMoney(getCurrentPotSize());
 		} else if (playerRoundData.size() > 1) {
 			sb.append("Multiple Winners: ");
 			boolean firstIteration = true;
+			long potSplit = getCurrentPotSize() / playerRoundData.size();
 			for (PlayerRoundData winningPlayerData : playerRoundData) {
 				if (!firstIteration) {
 					sb.append(", ");
@@ -237,7 +274,9 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 					firstIteration = false;
 				}
 				sb.append(winningPlayerData.get().getIrcName() + " with " + highestHands.get(winningPlayerData));
+				winningPlayerData.get().addMoney(potSplit);
 			}
+
 		}
 
 		if (sb.length() > 0) {

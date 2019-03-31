@@ -55,7 +55,7 @@ public class CardTest {
 			threeClubs,
 			aceSpades);
 
-		Hand hand = getHand(HandType.HIGH, cardsInput);
+		Hand hand = getHand(HandType.HIGH_CARD, cardsInput);
 		
 		List<Card> cardsOutput = hand.getCards();
 
@@ -193,7 +193,7 @@ public class CardTest {
 			twoSpades,
 			twoDiamonds);
 
-		Hand hand = getHand(HandType.FOUR, cardsInput);
+		Hand hand = getHand(HandType.FOUR_OF_A_KIND, cardsInput);
 		
 		List<Card> cardsOutput = hand.getCards();
 
@@ -247,7 +247,7 @@ public class CardTest {
 			twoDiamonds,
 			kingHearts);
 
-		Hand hand = getHand(HandType.TRIPS, cardsInput);
+		Hand hand = getHand(HandType.THREE_OF_A_KIND, cardsInput);
 		
 		List<Card> cardsOutput = hand.getCards();
 

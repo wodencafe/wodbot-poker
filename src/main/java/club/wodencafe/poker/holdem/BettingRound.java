@@ -54,6 +54,10 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 
 	private int betTimeout;
 
+	public long getPotSize() {
+		return potManager.getTotalPot();
+	}
+
 	List<Command> getPreviousCommands() {
 		return previousCommands;
 	}
@@ -102,18 +106,23 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 			Player previousPlayer = previousCommandsWithoutFolds.get(previousCommandsWithoutFolds.size() - 1)
 					.getPlayer();
 
-			Player currentPlayer;
+			if (isRoundComplete()) {
 
-			int previousPlayerIndex = playersWithoutFolds.indexOf(previousPlayer);
-
-			// If this is the last player in the list
-			if (previousPlayerIndex == (playersWithoutFolds.size() - 1)) {
-				currentPlayer = playersWithoutFolds.get(0);
+				return new AbstractMap.SimpleEntry<>(null, previousPlayer);
 			} else {
-				currentPlayer = playersWithoutFolds.get(previousPlayerIndex + 1);
-			}
+				Player currentPlayer;
 
-			return new AbstractMap.SimpleEntry<>(currentPlayer, previousPlayer);
+				int previousPlayerIndex = playersWithoutFolds.indexOf(previousPlayer);
+
+				// If this is the last player in the list
+				if (previousPlayerIndex == (playersWithoutFolds.size() - 1)) {
+					currentPlayer = playersWithoutFolds.get(0);
+				} else {
+					currentPlayer = playersWithoutFolds.get(previousPlayerIndex + 1);
+				}
+
+				return new AbstractMap.SimpleEntry<>(currentPlayer, previousPlayer);
+			}
 		}
 	}
 
