@@ -149,6 +149,9 @@ public class RoundMediatorTest {
 
 			Collection<PlayerRoundData> winners = winnerEntry.getKey();
 
+			Assert.assertTrue(bob.getMoney() == 115);
+
+			Assert.assertTrue(alice.getMoney() == 85);
 		}
 	}
 

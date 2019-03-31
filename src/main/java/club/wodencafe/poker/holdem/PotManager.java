@@ -80,6 +80,35 @@ public class PotManager {
 		throw new RuntimeException("Player " + player.get() + " not found.");
 	}
 
+	private long getLastBetCallOrRaiseAmount(Player player) {
+		List<CommandType> previousCommandTypes = previousCommands.stream()
+				.filter(x -> Objects.equals(x.getPlayer(), player)).map(Command::getCommandType)
+				.collect(Collectors.toList());
+
+		int lastIndex = Math.max(Math.max(
+				Math.max(previousCommandTypes.lastIndexOf(CommandType.BET),
+						previousCommandTypes.lastIndexOf(CommandType.RAISE)),
+				previousCommandTypes.lastIndexOf(CommandType.CALL)), 0);
+		if (lastIndex > -1) {
+			Command command = previousCommands.stream().filter(x -> Objects.equals(x.getPlayer(), player))
+					.collect(Collectors.toList()).get(lastIndex);
+			if (command.getCommandType() == CommandType.CALL) {
+				previousCommandTypes = previousCommands.stream().map(Command::getCommandType)
+						.collect(Collectors.toList());
+				lastIndex = Math.max(Math.max(previousCommandTypes.lastIndexOf(CommandType.BET),
+						previousCommandTypes.lastIndexOf(CommandType.RAISE)), 0);
+				command = previousCommands.get(lastIndex);
+
+				return command.getData().get();
+
+			} else {
+				return command.getData().get();
+			}
+		} else {
+			return lastIndex;
+		}
+	}
+
 	public void call(PlayerRoundData player) {
 
 		for (int x = 0; x < potFromPlayers.size(); x++) {
@@ -98,7 +127,7 @@ public class PotManager {
 
 				long prevAmount = prev.getValue().get();
 
-				e.getKey().get().removeMoney(prevAmount);
+				e.getKey().get().removeMoney(prevAmount - e.getValue().get());
 
 				e.getValue().set(prevAmount);
 
