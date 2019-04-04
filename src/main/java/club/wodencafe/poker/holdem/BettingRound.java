@@ -30,7 +30,7 @@ import io.reactivex.subjects.ReplaySubject;
  *
  */
 public class BettingRound extends AbstractIdleService implements AutoCloseable {
-	private static Logger logger = LoggerFactory.getLogger(BettingRound.class);
+	private static final Logger logger = LoggerFactory.getLogger(BettingRound.class);
 
 	private boolean closed = false;
 
