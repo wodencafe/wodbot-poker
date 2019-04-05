@@ -35,7 +35,7 @@ public class WodBotListener extends ListenerAdapter {
 
 		try {
 			if (event.getMessage().startsWith(WodData.commandChar + "startgame")) {
-				if (round.isEmpty()) {
+				if (!round.isPresent()) {
 
 					String nick = event.getUser().getNick();
 
