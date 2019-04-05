@@ -37,7 +37,9 @@ public class WodBotListener extends ListenerAdapter {
 			if (event.getMessage().startsWith(WodData.commandChar + "startgame")) {
 				if (round.isEmpty()) {
 
-					Player player = PlayerService.load(event.getUser().getNick());
+					String nick = event.getUser().getNick();
+
+					Player player = PlayerService.load(nick);
 
 					if (player == null) {
 						player = new Player();

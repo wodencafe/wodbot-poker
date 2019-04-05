@@ -126,7 +126,7 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 
 			playerMessage.onComplete();
 
-			if (!bettingRound.isEmpty()) {
+			if (bettingRound.isPresent()) {
 				bettingRound.get().close();
 			}
 		}
@@ -195,7 +195,7 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 					StringBuilder sb = new StringBuilder();
 					sb.append(data.getKey().getIrcName() + " "
 							+ WordUtils.capitalizeFully(data.getValue().getCommandType().toString()) + "s"
-							+ (data.getValue().getData().isEmpty() ? "."
+							+ (!data.getValue().getData().isPresent() ? "."
 									: ((data.getValue().getCommandType() == CommandType.RAISE ? " to " : " ") + "$"
 											+ String.valueOf(data.getValue().getData().get())) + "."));
 					long potSize = getCurrentPotSize();
