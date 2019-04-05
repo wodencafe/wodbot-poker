@@ -21,7 +21,7 @@ public class WodBotService extends AbstractScheduledService {
 	@Override
 	protected void runOneIteration() throws Exception {
 		if (Objects.equals("foo", "foo")) {
-			System.out.println("bar");
+			System.out.print("");
 		}
 	}
 
