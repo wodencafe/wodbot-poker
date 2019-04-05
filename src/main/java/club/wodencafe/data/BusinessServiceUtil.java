@@ -27,8 +27,12 @@ public class BusinessServiceUtil {
 
 	static {
 		try {
-			DatabaseService.SINGLETON.startUp();
-			emf = Persistence.createEntityManagerFactory("poker-prod");
+			if (!DatabaseService.SINGLETON.isRunning()) {
+				DatabaseService.SINGLETON.startAsync();
+				DatabaseService.SINGLETON.awaitRunning();
+				EntityManagerFactory emf = Persistence.createEntityManagerFactory("poker-prod");
+				BusinessServiceUtil.emf = emf;
+			}
 		} catch (Throwable e) {
 			throw new RuntimeException(e);
 		}

@@ -1,9 +1,18 @@
 package club.wodencafe.data;
 
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class PlayerService {
+	private static final Logger logger = LoggerFactory.getLogger(PlayerService.class);
+
 	public static Player load(String ircName) {
 		try {
-			return BusinessServiceUtil.findAllWithJPA(Player.class).stream().findFirst().orElse(null);
+			List<Player> players = BusinessServiceUtil.findAllWithJPA(Player.class);
+
+			return players.stream().findFirst().orElse(null);
 			/*
 			 * List<Player> players = BusinessServiceUtil.findAllWithJPA(Player.class,
 			 * (arg0) -> { CriteriaQuery<Player> cq = arg0.getMiddle(); Root<Player> root =
@@ -13,6 +22,7 @@ public class PlayerService {
 			 * });
 			 */
 		} catch (Throwable e) {
+			logger.error("Unable to load player", e);
 			throw new RuntimeException(e);
 		}
 	}

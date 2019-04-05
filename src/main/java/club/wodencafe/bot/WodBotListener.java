@@ -10,12 +10,11 @@ import org.slf4j.LoggerFactory;
 
 import club.wodencafe.data.Player;
 import club.wodencafe.data.PlayerService;
-import club.wodencafe.poker.holdem.BettingRound;
 import club.wodencafe.poker.holdem.RoundMediator;
 
 public class WodBotListener extends ListenerAdapter {
 
-	private static final Logger logger = LoggerFactory.getLogger(BettingRound.class);
+	private static final Logger logger = LoggerFactory.getLogger(WodBotListener.class);
 	private PircBotX bot = null;
 
 	private Optional<RoundMediator> round = Optional.empty();
@@ -34,24 +33,29 @@ public class WodBotListener extends ListenerAdapter {
 	@Override
 	public void onGenericMessage(GenericMessageEvent event) {
 
-		if (event.getMessage().startsWith(WodData.commandChar + "startgame")) {
-			if (round.isEmpty()) {
+		try {
+			if (event.getMessage().startsWith(WodData.commandChar + "startgame")) {
+				if (round.isEmpty()) {
 
-				Player player = PlayerService.load(event.getUser().getNick());
+					Player player = PlayerService.load(event.getUser().getNick());
 
-				if (player == null) {
-					player = new Player();
-					player.setIrcName(event.getUser().getNick());
-					player.setMoney(100L);
-					PlayerService.save(player);
-					logger.debug("Saving new player " + player);
+					if (player == null) {
+						player = new Player();
+						player.setIrcName(event.getUser().getNick());
+						player.setMoney(100L);
+						PlayerService.save(player);
+						logger.debug("Saving new player " + player);
+					}
+
+					RoundMediator roundMediator = new RoundMediator(player);
+					round = Optional.of(roundMediator);
+				} else {
+					event.respond("Round is currently in progress.");
 				}
-
-				RoundMediator roundMediator = new RoundMediator(player);
-				round = Optional.of(roundMediator);
-			} else {
-				event.respond("Round is currently in progress.");
 			}
+		} catch (Throwable e) {
+			event.respond("Unexpected error occurred: " + e.getMessage());
+			throw new RuntimeException(e);
 		}
 
 	}
