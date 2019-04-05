@@ -29,7 +29,7 @@ public class BusinessServiceUtil {
 		try {
 			DatabaseService.SINGLETON.startUp();
 			emf = Persistence.createEntityManagerFactory("poker-prod");
-		} catch (Exception e) {
+		} catch (Throwable e) {
 			throw new RuntimeException(e);
 		}
 	}
@@ -67,9 +67,10 @@ public class BusinessServiceUtil {
 	@SafeVarargs
 	public static <T extends BusinessEntity> List<T> findAllWithJPA(Class<T> clazz,
 			Function<Triple<CriteriaBuilder, CriteriaQuery<T>, Root<T>>, CriteriaQuery<T>>... functions) {
-		String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
+		// String methodName =
+		// Thread.currentThread().getStackTrace()[1].getMethodName();
 
-		logger.trace(methodName);
+		// logger.trace(methodName);
 
 		EntityManager em = getEntityManager();
 		CriteriaBuilder cb = em.getCriteriaBuilder();
@@ -145,7 +146,8 @@ public class BusinessServiceUtil {
 		if (entity.getId() != null && entity.getId() > 0) {
 
 			try {
-				HibernateUtil.getSessionFactory().getCache().evict(clazz, entity.getId());
+				// TOOD: Replace?
+				// HibernateUtil.getSessionFactory().getCache().evict(clazz, entity.getId());
 			} catch (Exception e1) {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
@@ -198,7 +200,8 @@ public class BusinessServiceUtil {
 		}
 		if (success) {
 			try {
-				HibernateUtil.getSessionFactory().getCache().evict(clazz, entity.getId());
+				// TOOD: Replace?
+				// HibernateUtil.getSessionFactory().getCache().evict(clazz, entity.getId());
 				em.refresh(entity);
 			} catch (Exception e) {
 				// TODO Auto-generated catch block

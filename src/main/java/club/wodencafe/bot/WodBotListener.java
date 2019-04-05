@@ -5,10 +5,17 @@ import java.util.Optional;
 import org.pircbotx.PircBotX;
 import org.pircbotx.hooks.ListenerAdapter;
 import org.pircbotx.hooks.types.GenericMessageEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import club.wodencafe.data.Player;
+import club.wodencafe.data.PlayerService;
+import club.wodencafe.poker.holdem.BettingRound;
 import club.wodencafe.poker.holdem.RoundMediator;
 
 public class WodBotListener extends ListenerAdapter {
+
+	private static final Logger logger = LoggerFactory.getLogger(BettingRound.class);
 	private PircBotX bot = null;
 
 	private Optional<RoundMediator> round = Optional.empty();
@@ -24,30 +31,29 @@ public class WodBotListener extends ListenerAdapter {
 		this.bot = bot;
 	}
 
-	public static void main(String[] args) {
-		WodBotListener listener = new WodBotListener();
-		listener.onGenericMessage(null);
-	}
-
 	@Override
 	public void onGenericMessage(GenericMessageEvent event) {
 
-		/*
-		 * if (event.getMessage().startsWith(WodData.commandChar + "startgame")) { if
-		 * (round.isEmpty()) {
-		 * 
-		 * Player player = PlayerService.load(event.getUser().getNick());
-		 * 
-		 * round = Optional.of(new RoundMediator(initialPlayer)); } else {
-		 * event.respond("Game already in progress."); } }
-		 */
-		// String message = event.getMessage();
-		// String message = "!weather 75019";
-		// When someone says ?helloworld respond with "Hello World"
-		/*
-		 * if (message.startsWith("!weather")) { String[] sp = message.split(" ");
-		 * event.respond("Format not correct for weather"); }
-		 */
+		if (event.getMessage().startsWith(WodData.commandChar + "startgame")) {
+			if (round.isEmpty()) {
+
+				Player player = PlayerService.load(event.getUser().getNick());
+
+				if (player == null) {
+					player = new Player();
+					player.setIrcName(event.getUser().getNick());
+					player.setMoney(100L);
+					PlayerService.save(player);
+					logger.debug("Saving new player " + player);
+				}
+
+				RoundMediator roundMediator = new RoundMediator(player);
+				round = Optional.of(roundMediator);
+			} else {
+				event.respond("Round is currently in progress.");
+			}
+		}
+
 	}
 
 }

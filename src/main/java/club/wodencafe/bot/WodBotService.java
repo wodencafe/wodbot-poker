@@ -1,4 +1,5 @@
 package club.wodencafe.bot;
+
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
@@ -10,15 +11,17 @@ public class WodBotService extends AbstractScheduledService {
 	public WodBotService() {
 		startAsync();
 	}
+
 	private PircBotX bot;
-	
+
 	public void setBot(PircBotX bot) {
 		this.bot = bot;
 	}
+
 	@Override
 	protected void runOneIteration() throws Exception {
 		if (Objects.equals("foo", "foo")) {
-			
+			System.out.println("bar");
 		}
 	}
 
