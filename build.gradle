@@ -27,7 +27,7 @@ dependencies {
 	compile group: 'org.apache.commons', name: 'commons-text', version: '1.6'
 
 	// https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
-	testCompile group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
+	compile group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
 
 	// https://mvnrepository.com/artifact/org.hsqldb/hsqldb
 	compile group: 'org.hsqldb', name: 'hsqldb', version: '2.4.1'
@@ -39,8 +39,11 @@ dependencies {
 	compile group: 'io.reactivex.rxjava2', name: 'rxjava', version: '2.2.7'
 	
 	compile 'javax.xml.bind:jaxb-api:2.3.0'
-    // The production code uses the SLF4J logging API at compile time
-    compile 'org.slf4j:slf4j-api:1.7.21'
+// https://mvnrepository.com/artifact/org.slf4j/slf4j-api
+compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.26'
+
+// https://mvnrepository.com/artifact/org.slf4j/slf4j-ext
+compile group: 'org.slf4j', name: 'slf4j-ext', version: '1.7.26'
 
 	compile group: 'org.jsoup', name: 'jsoup', version: '1.11.2'
 	implementation 'com.google.code.gson:gson:2.8.5'
