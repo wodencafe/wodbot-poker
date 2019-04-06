@@ -5,7 +5,8 @@ public class WodData {
 	public static long defaultMoney = 100L;
 	public static char commandChar = '!';
 
-	public static int betTimeout = 900;
+	public static int betTimeout = 30;
+	public static String databaseName = "poker-test";
 
 	public WodData() {
 		// TODO Auto-generated constructor stub

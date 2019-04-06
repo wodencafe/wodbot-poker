@@ -49,7 +49,11 @@ public class MiscUtil {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			BeanUtils.copyProperties(toObj, fromObj);
+			try {
+				BeanUtils.copyProperties(toObj, fromObj);
+			} catch (IllegalArgumentException e) {
+				throw new RuntimeException(e);
+			}
 			if (version != null) {
 				try {
 					BeanUtils.setProperty(toObj, "version", version);

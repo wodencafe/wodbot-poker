@@ -2,12 +2,11 @@ package club.wodencafe.poker.holdem;
 
 import java.util.AbstractMap;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executors;
@@ -15,13 +14,16 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.apache.commons.text.WordUtils;
+import org.slf4j.ext.XLogger;
+import org.slf4j.ext.XLoggerFactory;
 
 import club.wodencafe.bot.WodData;
 import club.wodencafe.data.Player;
+import club.wodencafe.data.PlayerService;
 import club.wodencafe.poker.cards.Card;
 import club.wodencafe.poker.cards.Deck;
 import club.wodencafe.poker.cards.HandUtil;
@@ -35,7 +37,7 @@ import io.reactivex.subjects.ReplaySubject;
  * 
  * @author wodencafe
  */
-public class RoundMediator implements AutoCloseable, Consumer<Command> {
+public class RoundMediator implements AutoCloseable, Predicate<Command> {
 	private ScheduledFuture<?> future = null;
 	private ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor();
 	private List<PlayerRoundData> playerData = new ArrayList<>();
@@ -50,19 +52,34 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 
 	private Optional<BettingRound> bettingRound = Optional.empty();
 
-	private ReplaySubject<Map.Entry<Collection<PlayerRoundData>, Long>> roundComplete = ReplaySubject.create();
+	private ReplaySubject<Map<PlayerRoundData, Long>> roundComplete = ReplaySubject.create();
 
 	private List<Card> communityCards = new ArrayList<>();
 
 	private AtomicLong pot = new AtomicLong();
 
-	public long getCurrentPotSize() {
-		long potSize = pot.get();
+	private static final XLogger logger = XLoggerFactory.getXLogger(RoundMediator.class);
 
-		if (bettingRound.isPresent()) {
-			potSize += bettingRound.get().getPotSize();
+	public long getCurrentPotSize() {
+		logger.entry();
+		long potSize = -1;
+		try {
+			potSize = pot.get();
+
+			if (bettingRound.isPresent()) {
+				potSize += bettingRound.get().getPotSize();
+			}
+			return potSize;
+		} catch (Throwable th) {
+			logger.catching(th);
+			throw new RuntimeException(th);
+		} finally {
+			logger.exit(potSize);
 		}
-		return potSize;
+	}
+
+	public Optional<BettingRound> getBettingRound() {
+		return bettingRound;
 	}
 
 	// Keep track of these just in case
@@ -76,7 +93,7 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 		return playerData.stream().map(x -> x.get()).collect(Collectors.toList());
 	}
 
-	public Observable<Map.Entry<Collection<PlayerRoundData>, Long>> onRoundComplete() {
+	public Observable<Map<PlayerRoundData, Long>> onRoundComplete() {
 		return roundComplete;
 	}
 
@@ -89,153 +106,245 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 	}
 
 	private void cancelFuture() {
-		if (future != null && !future.isCancelled() && !future.isDone()) {
-			future.cancel(true);
+		logger.entry();
+		try {
+			if (future != null && !future.isCancelled() && !future.isDone()) {
+				future.cancel(true);
+			}
+		} catch (Throwable th) {
+			logger.catching(th);
+			throw th;
+		} finally {
+			logger.exit();
 		}
 	}
 
 	public RoundMediator(Player initialPlayer) {
-		phaseManager = new PhaseManager();
+		logger.entry(initialPlayer);
+		try {
+			phaseManager = new PhaseManager();
 
-		phaseManager.onNewPhase().subscribe(this::handleNewPhase);
+			phaseManager.onNewPhase().subscribe(this::handleNewPhase, (e) ->
+			{
+				e.printStackTrace(System.err);
+				System.out.println(e);
+			});
 
-		deck = Deck.generateDeck(false);
+			deck = Deck.generateDeck(false);
 
-		phaseManager.run();
+			phaseManager.run();
 
-		addPlayer(initialPlayer);
+			PlayerService.save(initialPlayer);
+
+			addPlayer(initialPlayer);
+		} catch (Throwable th) {
+			logger.catching(th);
+			throw th;
+		} finally {
+			logger.exit();
+		}
 	}
 
 	public PhaseManager getPhaseManager() {
-		return phaseManager;
+		logger.entry();
+		try {
+			return phaseManager;
+		} finally {
+			logger.exit(phaseManager);
+		}
 	}
 
 	private boolean close = false;
 
 	@Override
 	public void close() throws Exception {
-		if (!close) {
-			close = true;
-			cancelFuture();
+		try {
+			if (!close) {
+				close = true;
+				cancelFuture();
 
-			service.shutdown();
+				service.shutdown();
 
-			roundComplete.onComplete();
+				roundComplete.onComplete();
 
-			generalMessage.onComplete();
+				generalMessage.onComplete();
 
-			playerMessage.onComplete();
+				playerMessage.onComplete();
 
-			if (bettingRound.isPresent()) {
-				bettingRound.get().close();
+				if (bettingRound.isPresent()) {
+					bettingRound.get().close();
+				}
 			}
+		} catch (Exception e) {
+			logger.catching(e);
+			throw e;
+		} finally {
+			logger.exit();
 		}
 	}
 
 	public List<Player> getActivePlayers() {
-		return playerData.stream().filter(x -> !x.isFolded()).filter(x -> !x.isShown()).map(x -> x.get())
-				.collect(Collectors.toList());
+		logger.entry();
+		List<Player> players = null;
+		try {
+			players = playerData.stream().filter(x -> !x.isFolded()).filter(x -> !x.isShown()).map(x -> x.get())
+					.collect(Collectors.toList());
+			return players;
+		} catch (Throwable th) {
+			logger.catching(th);
+			throw new RuntimeException(th);
+		} finally {
+			logger.exit(players);
+		}
+
+	}
+
+	private void complete(Map<PlayerRoundData, Long> winners) {
+
+		logger.entry(winners);
+		try {
+			for (Entry<PlayerRoundData, Long> entry : winners.entrySet()) {
+				Player player = entry.getKey().get();
+
+				player.addMoney(entry.getValue());
+
+				PlayerService.save(player);
+			}
+			roundComplete.onNext(winners);
+			close();
+		} catch (Throwable th) {
+
+			logger.catching(th);
+			logger.error("Unable to complete RoundMediator", th);
+			throw new RuntimeException(th);
+		} finally {
+			logger.exit();
+		}
+	}
+
+	private void complete(PlayerRoundData winner, Long winnings) {
+		logger.entry(winner, winnings);
+		try {
+			Map<PlayerRoundData, Long> winners = new HashMap<>();
+			winners.put(winner, winnings);
+			complete(winners);
+		} catch (Throwable th) {
+			logger.catching(th);
+			throw new RuntimeException(th);
+		} finally {
+			logger.exit();
+		}
 	}
 
 	private void handleNewPhase(Phase newPhase) {
 
-		cancelFuture();
+		logger.entry(newPhase);
+		try {
+			cancelFuture();
 
-		StringBuilder message = new StringBuilder();
+			StringBuilder message = new StringBuilder();
 
-		if (getActivePlayers().size() == 1) {
-			PlayerRoundData data = getPlayerDataByPlayer(getActivePlayers().iterator().next());
-			roundComplete.onNext(new AbstractMap.SimpleEntry<>(Arrays.asList(data), pot.get()));
-		} else {
-			if (newPhase == Phase.AWAITING_PLAYERS) {
+			if (getActivePlayers().size() == 1) {
+				PlayerRoundData data = getPlayerDataByPlayer(getActivePlayers().iterator().next());
 
-				future = service.schedule(() -> phaseManager.run(), 30, TimeUnit.SECONDS);
+				complete(data, getCurrentPotSize());
+			} else {
+				if (newPhase == Phase.AWAITING_PLAYERS) {
 
-				message.append("Awaiting players, type " + WodData.commandChar + CommandType.DEAL.getCommandName()
-						+ " to be dealt into the match.");
+					future = service.schedule(() -> phaseManager.run(), 30, TimeUnit.SECONDS);
 
-			}
-			if (newPhase == Phase.HOLE) {
+					message.append("Awaiting players, type " + WodData.commandChar + CommandType.DEAL.getCommandName()
+							+ " to be dealt into the match.");
 
-				message.append("Dealing cards to " + playerData.size() + " players.");
-
-				dealAllPlayersIn();
-			} else if (newPhase == Phase.FLOP) {
-
-				burn(1);
-				addCommunityCards(3);
-
-				message.append(getCommunityCardString() + " on the flop.");
-
-			} else if (newPhase == Phase.TURN) {
-				burn(1);
-				addCommunityCards(1);
-
-				message.append(getCommunityCardString() + " with the turn card.");
-
-			} else if (newPhase == Phase.RIVER) {
-				burn(1);
-				addCommunityCards(1);
-
-				message.append(getCommunityCardString() + " with the river.");
-			}
-			if (newPhase.isBetPhase()) {
-
-				message.append(" Remaining players: " + playerData.size() + ". Pot Size: $" + pot.get() + ".");
-
-				PlayerRoundData player = playerData.iterator().next();
-
-				message.append(" " + player.get().getIrcName() + "'s turn.");
-
-				BettingRound bettingRoundValue = new BettingRound(playerData);
-				bettingRoundValue.startAsync();
-				bettingRound = Optional.of(bettingRoundValue);
-				bettingRoundValue.onPlayerCommand().subscribe(data ->
-				{
-					StringBuilder sb = new StringBuilder();
-					sb.append(data.getKey().getIrcName() + " "
-							+ WordUtils.capitalizeFully(data.getValue().getCommandType().toString()) + "s"
-							+ (!data.getValue().getData().isPresent() ? "."
-									: ((data.getValue().getCommandType() == CommandType.RAISE ? " to " : " ") + "$"
-											+ String.valueOf(data.getValue().getData().get())) + "."));
-					long potSize = getCurrentPotSize();
-
-					if (potSize > 0) {
-						sb.append(" Current pot size is $" + potSize + ".");
-					}
-
-					Entry<Player, Player> currentAndPreviousPlayer = bettingRoundValue.getCurrentAndPreviousPlayer();
-
-					Player currentPlayer = currentAndPreviousPlayer.getKey();
-					if (currentPlayer != null) {
-						sb.append(" " + currentAndPreviousPlayer.getKey().getIrcName() + "'s turn.");
-					} else {
-						sb.append(" " + WordUtils.capitalizeFully(newPhase.toString()) + " round complete.");
-					}
-
-					generalMessage.onNext(sb.toString());
-				});
-				bettingRoundValue.onBettingRoundComplete().subscribe(potAmount ->
-				{
-
-					pot.addAndGet(potAmount);
-
-					phaseManager.run();
-				});
-			}
-			if (newPhase == Phase.SHOWDOWN) {
-				future = service.schedule(() -> showdown(), 30, TimeUnit.SECONDS);
-				StringBuilder sb = new StringBuilder(
-						"Showdown, Remaining players: " + playerData.size() + ". Pot Size: $" + pot.get() + ". ");
-				for (PlayerRoundData player : playerData) {
-					sb.append(player.get().getIrcName() + ", ");
 				}
-				sb.append("you can " + WodData.commandChar + "show or " + WodData.commandChar + "fold.");
-				message.append(sb.toString());
+				if (newPhase == Phase.HOLE) {
+
+					message.append("Dealing cards to " + playerData.size() + " players.");
+
+					dealAllPlayersIn();
+				} else if (newPhase == Phase.FLOP) {
+
+					burn(1);
+					addCommunityCards(3);
+
+					message.append(getCommunityCardString() + " on the flop.");
+
+				} else if (newPhase == Phase.TURN) {
+					burn(1);
+					addCommunityCards(1);
+
+					message.append(getCommunityCardString() + " with the turn card.");
+
+				} else if (newPhase == Phase.RIVER) {
+					burn(1);
+					addCommunityCards(1);
+
+					message.append(getCommunityCardString() + " with the river.");
+				}
+				if (newPhase.isBetPhase()) {
+
+					message.append(" Remaining players: " + playerData.size() + ". Pot Size: $" + pot.get() + ".");
+
+					PlayerRoundData player = playerData.iterator().next();
+
+					message.append(" " + player.get().getIrcName() + "'s turn.");
+
+					BettingRound bettingRoundValue = new BettingRound(playerData);
+					bettingRoundValue.startAsync();
+					bettingRound = Optional.of(bettingRoundValue);
+					bettingRoundValue.onPlayerCommand().subscribe(data ->
+					{
+						StringBuilder sb = new StringBuilder();
+						sb.append(data.getKey().getIrcName() + " "
+								+ WordUtils.capitalizeFully(data.getValue().getCommandType().toString()) + "s"
+								+ (!data.getValue().getData().isPresent() ? "."
+										: ((data.getValue().getCommandType() == CommandType.RAISE ? " to " : " ") + "$"
+												+ String.valueOf(data.getValue().getData().get())) + "."));
+						long potSize = getCurrentPotSize();
+
+						if (potSize > 0) {
+							sb.append(" Current pot size is $" + potSize + ".");
+						}
+
+						Entry<Player, Player> currentAndPreviousPlayer = bettingRoundValue
+								.getCurrentAndPreviousPlayer();
+
+						Player currentPlayer = currentAndPreviousPlayer.getKey();
+						if (currentPlayer != null) {
+							sb.append(" " + currentAndPreviousPlayer.getKey().getIrcName() + "'s turn.");
+						} else {
+							sb.append(" " + WordUtils.capitalizeFully(newPhase.toString()) + " round complete.");
+						}
+
+						generalMessage.onNext(sb.toString());
+					});
+					bettingRoundValue.onBettingRoundComplete().subscribe(potAmount ->
+					{
+
+						pot.addAndGet(potAmount);
+
+						phaseManager.run();
+					});
+				}
+				if (newPhase == Phase.SHOWDOWN) {
+					future = service.schedule(() -> showdown(), 30, TimeUnit.SECONDS);
+					StringBuilder sb = new StringBuilder(
+							"Showdown, Remaining players: " + playerData.size() + ". Pot Size: $" + pot.get() + ". ");
+					for (PlayerRoundData player : playerData) {
+						sb.append(player.get().getIrcName() + ", ");
+					}
+					sb.append("you can " + WodData.commandChar + "show or " + WodData.commandChar + "fold.");
+					message.append(sb.toString());
+				}
 			}
-		}
-		if (message.length() > 0) {
-			generalMessage.onNext(message.toString());
+			if (message.length() > 0) {
+				generalMessage.onNext(message.toString());
+			}
+		} catch (Throwable th) {
+			logger.catching(th);
+			throw new RuntimeException(th);
+		} finally {
+			logger.exit();
 		}
 	}
 
@@ -248,77 +357,89 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 	}
 
 	private void showdown() {
-		cancelFuture();
+		logger.entry();
+		try {
+			cancelFuture();
 
-		StringBuilder sb = new StringBuilder();
+			StringBuilder sb = new StringBuilder();
 
-		Map<PlayerRoundData, Hand> highestHands = getHighHands();
+			Map<PlayerRoundData, Hand> highestHands = getHighHands();
 
-		Set<PlayerRoundData> playerRoundData = highestHands.keySet();
+			Set<PlayerRoundData> playerRoundData = highestHands.keySet();
 
-		if (playerRoundData.size() == 1) {
-			PlayerRoundData winningPlayerData = playerRoundData.iterator().next();
+			Map<PlayerRoundData, Long> winningPlayers = new HashMap<>();
+			if (playerRoundData.size() == 1) {
+				PlayerRoundData winningPlayerData = playerRoundData.iterator().next();
 
-			sb.append("Winner: " + winningPlayerData.get().getIrcName() + " with " + highestHands.get(winningPlayerData)
-					+ ", winning $" + getCurrentPotSize() + ".");
+				sb.append("Winner: " + winningPlayerData.get().getIrcName() + " with "
+						+ highestHands.get(winningPlayerData) + ", winning $" + getCurrentPotSize() + ".");
 
-			winningPlayerData.get().addMoney(getCurrentPotSize());
-		} else if (playerRoundData.size() > 1) {
-			sb.append("Multiple Winners: ");
-			boolean firstIteration = true;
-			long potSplit = getCurrentPotSize() / playerRoundData.size();
-			for (PlayerRoundData winningPlayerData : playerRoundData) {
-				if (!firstIteration) {
-					sb.append(", ");
-				} else {
-					firstIteration = false;
+				winningPlayers.put(winningPlayerData, getCurrentPotSize());
+			} else if (playerRoundData.size() > 1) {
+				sb.append("Multiple Winners: ");
+				boolean firstIteration = true;
+				long potSplit = getCurrentPotSize() / playerRoundData.size();
+				for (PlayerRoundData winningPlayerData : playerRoundData) {
+					if (!firstIteration) {
+						sb.append(", ");
+					} else {
+						firstIteration = false;
+					}
+					sb.append(winningPlayerData.get().getIrcName() + " with " + highestHands.get(winningPlayerData));
+					winningPlayerData.get().addMoney(potSplit);
+					winningPlayers.put(winningPlayerData, potSplit);
 				}
-				sb.append(winningPlayerData.get().getIrcName() + " with " + highestHands.get(winningPlayerData));
-				winningPlayerData.get().addMoney(potSplit);
+
 			}
 
-		}
+			if (sb.length() > 0) {
+				generalMessage.onNext(sb.toString());
+			}
 
-		if (sb.length() > 0) {
-			generalMessage.onNext(sb.toString());
-		}
-
-		roundComplete.onNext(new AbstractMap.SimpleEntry<>(playerRoundData, pot.get()));
-
-		try {
-			close();
-		} catch (Exception e) {
-			throw new RuntimeException(e);
+			complete(winningPlayers);
+		} catch (Throwable th) {
+			logger.catching(th);
+			throw new RuntimeException(th);
+		} finally {
+			logger.exit();
 		}
 	}
 
 	private Map<PlayerRoundData, Hand> getHighHands() {
 
-		List<PlayerRoundData> shownPlayers = getShownPlayerData();
-
+		logger.entry();
 		Map<PlayerRoundData, Hand> highestHands = new HashMap<>();
 
-		for (PlayerRoundData data : shownPlayers) {
-			List<Card> combinedCards = new ArrayList<>(communityCards);
-			combinedCards.addAll(data.getCards());
+		try {
+			List<PlayerRoundData> shownPlayers = getShownPlayerData();
 
-			Hand hand = HandUtil.getHand(combinedCards);
+			for (PlayerRoundData data : shownPlayers) {
+				List<Card> combinedCards = new ArrayList<>(communityCards);
+				combinedCards.addAll(data.getCards());
 
-			if (highestHands.isEmpty()) {
-				highestHands.put(data, hand);
-			} else {
-				Hand highHand = highestHands.values().iterator().next();
+				Hand hand = HandUtil.getHand(combinedCards);
 
-				int comparison = hand.compareTo(highHand);
-				if (comparison > 0) {
-					highestHands.clear();
+				if (highestHands.isEmpty()) {
 					highestHands.put(data, hand);
-				} else if (comparison == 0) {
-					highestHands.put(data, hand);
+				} else {
+					Hand highHand = highestHands.values().iterator().next();
+
+					int comparison = hand.compareTo(highHand);
+					if (comparison > 0) {
+						highestHands.clear();
+						highestHands.put(data, hand);
+					} else if (comparison == 0) {
+						highestHands.put(data, hand);
+					}
 				}
 			}
+			return highestHands;
+		} catch (Throwable th) {
+			logger.catching(th);
+			throw new RuntimeException(th);
+		} finally {
+			logger.exit(highestHands);
 		}
-		return highestHands;
 	}
 
 	private List<PlayerRoundData> getShownPlayerData() {
@@ -343,7 +464,8 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 			if (optionalCard.isPresent()) {
 				communityCards.add(optionalCard.get());
 			} else {
-				// TODO: Error, out of cards.
+				NoSuchElementException nsee = new NoSuchElementException("Out of cards.");
+				throw new RuntimeException(nsee);
 			}
 		}
 	}
@@ -355,70 +477,9 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 			if (optionalCard.isPresent()) {
 				burnCards.add(optionalCard.get());
 			} else {
-				// TODO: Error, out of cards.
+				NoSuchElementException nsee = new NoSuchElementException("Out of cards.");
+				throw new RuntimeException(nsee);
 			}
-		}
-	}
-
-	@Override
-	public void accept(Command command) {
-		CommandType commandType = command.getCommandType();
-		Phase phase = phaseManager.get();
-		Player player = command.getPlayer();
-		PlayerRoundData data = getPlayerDataByPlayer(player);
-		if (phase == Phase.AWAITING_PLAYERS) {
-			// TODO: Make sure the player has money
-			if (commandType == CommandType.DEAL) {
-				if (!(playerData.size() > 12)) {
-					addPlayer(player);
-				} else {
-					// TODO: Error Message, can't have more players.
-				}
-			} else {
-				// TODO: Error Message, can't have perform other commands here.
-			}
-		} else if (phase == Phase.SHOWDOWN) {
-			if (commandType == CommandType.SHOW) {
-				StringBuilder sb = new StringBuilder(data.get().getIrcName() + " shows ");
-				for (Card card : data.getCards()) {
-					sb.append(card);
-				}
-				generalMessage.onNext(sb.toString());
-				showPlayer(player);
-				if (getActivePlayers().isEmpty()) {
-					showdown();
-				}
-			} else if (commandType == CommandType.FOLD) {
-				foldPlayer(player);
-
-				if (getActivePlayers().isEmpty()) {
-					showdown();
-				}
-			} else {
-				// TODO: Error Message, bad command.
-			}
-		} else {
-			if (commandType == CommandType.FOLD) {
-				foldPlayer(player);
-			}
-			if (phase.isBetPhase()) {
-				if (commandType.isBetCommand()) {
-					BettingRound bettingRoundValue = bettingRound.get();
-
-					bettingRoundValue.handleCommand(command);
-				} else {
-					// TODO: handle non bet commands
-				}
-			}
-			/*
-			 * else if (phase.isBetPhase() || phase == Phase.SHOWDOWN) { if
-			 * (phase.isBetPhase()) { if (player.equals(obj)) switch (commandType) {
-			 * 
-			 * }
-			 * 
-			 * } }
-			 */
-
 		}
 	}
 
@@ -445,7 +506,8 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 
 				peekPlayer(playerRoundData);
 			} else {
-				// TODO: Error, we are out of cards.
+				NoSuchElementException nsee = new NoSuchElementException("Out of cards.");
+				throw new RuntimeException(nsee);
 			}
 		}
 	}
@@ -455,11 +517,18 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 	}
 
 	private void addPlayer(Player player) {
+		PlayerService.save(player);
+
 		if (!isPlayerParticipating(player)) {
 			// TODO: Should the cards be shown to the player here?
 			PlayerRoundData data = new PlayerRoundData(player);
 
 			playerData.add(data);
+
+			generalMessage.onNext(player.getIrcName() + " you have been added to the game.");
+		} else {
+
+			generalMessage.onNext(player.getIrcName() + " you are already in the game.");
 		}
 	}
 
@@ -477,12 +546,80 @@ public class RoundMediator implements AutoCloseable, Consumer<Command> {
 				// Do nothing, can't find player.
 			}
 		} catch (Exception e) {
-			// TODO: Log this or something.
+			logger.error("Unable to fold player.", e);
 		}
 	}
 
 	private boolean isPlayerParticipating(Player player) {
 		return playerData.stream().map(x -> x.get()).map(x -> x.getIrcName())
 				.anyMatch(x -> x.equals(player.getIrcName()));
+	}
+
+	@Override
+	public boolean test(Command command) {
+		CommandType commandType = command.getCommandType();
+		Phase phase = phaseManager.get();
+		Player player = command.getPlayer();
+		PlayerRoundData data = getPlayerDataByPlayer(player);
+		if (phase == Phase.AWAITING_PLAYERS) {
+			// TODO: Make sure the player has money
+			if (commandType == CommandType.DEAL) {
+				if (!(playerData.size() > 12)) {
+					addPlayer(player);
+				} else {
+					generalMessage.onNext(player.getIrcName() + " can't be added, too many players.");
+				}
+			} else {
+				generalMessage.onNext(player.getIrcName() + " command invalid.");
+			}
+		} else if (phase == Phase.SHOWDOWN) {
+			if (commandType == CommandType.SHOW) {
+				StringBuilder sb = new StringBuilder(data.get().getIrcName() + " shows ");
+				for (Card card : data.getCards()) {
+					sb.append(card);
+				}
+				generalMessage.onNext(sb.toString());
+				showPlayer(player);
+				if (getActivePlayers().isEmpty()) {
+					showdown();
+				}
+			} else if (commandType == CommandType.FOLD) {
+				foldPlayer(player);
+
+				if (getActivePlayers().isEmpty()) {
+					showdown();
+				}
+				return true;
+			} else {
+				// TODO: Throw exception here?
+				generalMessage.onNext(player.getIrcName() + " can't process this command here.");
+			}
+		} else {
+			if (commandType == CommandType.FOLD) {
+				foldPlayer(player);
+				return true;
+			}
+			if (phase.isBetPhase()) {
+				if (commandType.isBetCommand()) {
+					BettingRound bettingRoundValue = bettingRound.get();
+
+					bettingRoundValue.handleCommand(command);
+				} else {
+					// TODO: handle non bet commands
+				}
+				return true;
+			}
+			/*
+			 * else if (phase.isBetPhase() || phase == Phase.SHOWDOWN) { if
+			 * (phase.isBetPhase()) { if (player.equals(obj)) switch (commandType) {
+			 * 
+			 * }
+			 * 
+			 * } }
+			 */
+
+		}
+		return false;
+
 	}
 }

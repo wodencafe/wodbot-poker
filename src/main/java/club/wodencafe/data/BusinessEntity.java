@@ -25,6 +25,11 @@ import javax.persistence.Version;
 @EntityListeners({ BusinessListener.class })
 public class BusinessEntity implements Serializable {
 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+
 	@Column(name = "BUSINESS_ENTITY_ID", updatable = false, nullable = false)
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)

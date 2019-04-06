@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import club.wodencafe.data.Player;
+import club.wodencafe.data.PlayerService;
 
 public class PotManager {
 	private List<Entry<PlayerRoundData, AtomicLong>> potFromPlayers = new ArrayList<>();
@@ -73,6 +74,8 @@ public class PotManager {
 			if (Objects.equals(playerData.getKey(), player)) {
 				playerData.getKey().get().removeMoney(amount);
 
+				PlayerService.save(playerData.getKey().get());
+
 				playerData.getValue().set(amount);
 				return;
 			}
@@ -129,6 +132,8 @@ public class PotManager {
 
 				e.getKey().get().removeMoney(prevAmount - e.getValue().get());
 
+				PlayerService.save(e.getKey().get());
+
 				e.getValue().set(prevAmount);
 
 				return;
@@ -159,6 +164,9 @@ public class PotManager {
 				if (amount > prevAmount) {
 
 					e.getKey().get().removeMoney(amount);
+
+					PlayerService.save(e.getKey().get());
+
 					e.getValue().set(amount);
 
 					return;

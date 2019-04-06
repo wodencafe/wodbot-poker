@@ -6,11 +6,11 @@ import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Root;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.slf4j.ext.XLogger;
+import org.slf4j.ext.XLoggerFactory;
 
 public class PlayerService {
-	private static final Logger logger = LoggerFactory.getLogger(PlayerService.class);
+	private static final XLogger logger = XLoggerFactory.getXLogger(PlayerService.class);
 
 	public static Player load(String ircName) {
 		try {
@@ -36,6 +36,37 @@ public class PlayerService {
 	}
 
 	public static void save(Player player) {
-		BusinessServiceUtil.saveWithJPA(player, Player.class);
+		logger.entry(player);
+		try {
+			BusinessServiceUtil.saveWithJPA(player, Player.class);
+		} catch (Throwable th) {
+			logger.catching(th);
+			throw new RuntimeException(th);
+		} finally {
+			logger.exit();
+		}
+	}
+
+	public static void delete(Player player) {
+
+		logger.entry(player);
+		try {
+			BusinessServiceUtil.deleteWithJPA(player, Player.class);
+		} catch (Throwable th) {
+			logger.catching(th);
+		} finally {
+			logger.exit();
+		}
+	}
+
+	public static void deleteAll() {
+		logger.entry();
+		try {
+			BusinessServiceUtil.deleteAllWithJPA(Player.class);
+		} catch (Throwable th) {
+			logger.catching(th);
+		} finally {
+			logger.exit();
+		}
 	}
 }

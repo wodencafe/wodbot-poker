@@ -1,6 +1,7 @@
 package club.wodencafe.data;
 
 import java.util.List;
+import java.util.Optional;
 
 import net.jodah.typetools.TypeResolver;
 
@@ -66,6 +67,6 @@ public class BusinessServiceJPA<T extends BusinessEntity> implements BusinessSer
 
 	@Override
 	public void refresh(T entity) {
-		BusinessServiceUtil.refreshWithJPA(entity, clazz);
+		BusinessServiceUtil.refreshWithJPA(entity, clazz, Optional.empty());
 	}
 }

@@ -4,7 +4,16 @@ import org.pircbotx.Configuration;
 import org.pircbotx.PircBotX;
 
 public class WodBotClass implements Runnable {
+	public static void setLoggingLevel(ch.qos.logback.classic.Level level) {
+		ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory
+				.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
+		root.setLevel(level);
+	}
+
 	public static void main(String[] args) throws Exception {
+		setLoggingLevel(ch.qos.logback.classic.Level.TRACE);
+
+		WodData.databaseName = "poker-prod";
 
 		runBot();
 	}
@@ -34,8 +43,8 @@ public class WodBotClass implements Runnable {
 			PircBotX bot = new PircBotX(configuration);
 			this.bot = bot;
 			service.setBot(bot);
-			bot.startBot();
 			listener.setBot(bot);
+			bot.startBot();
 		} catch (Exception ex) {
 			ex.printStackTrace();
 		}
