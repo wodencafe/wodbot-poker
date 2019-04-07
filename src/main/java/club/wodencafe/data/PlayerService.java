@@ -13,6 +13,8 @@ public class PlayerService {
 	private static final XLogger logger = XLoggerFactory.getXLogger(PlayerService.class);
 
 	public static Player load(String ircName) {
+		logger.entry(ircName);
+		Player returnValue = null;
 		try {
 
 			List<Player> players = BusinessServiceUtil.findAllWithJPA(Player.class, (arg0) ->
@@ -25,14 +27,16 @@ public class PlayerService {
 			});
 
 			if (!players.isEmpty()) {
-				return players.iterator().next();
-			} else {
-				return null;
+				returnValue = players.iterator().next();
 			}
 		} catch (Throwable e) {
 			logger.error("Unable to load player", e);
+			logger.catching(e);
 			throw new RuntimeException(e);
+		} finally {
+			logger.exit(returnValue);
 		}
+		return returnValue;
 	}
 
 	public static void save(Player player) {

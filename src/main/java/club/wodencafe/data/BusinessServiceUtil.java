@@ -103,8 +103,9 @@ public class BusinessServiceUtil {
 		} catch (Throwable th) {
 			logger.catching(th);
 			throw new RuntimeException(th);
+		} finally {
+			logger.exit(entityManager);
 		}
-		logger.exit(entityManager);
 		return entityManager;
 		/*
 		 * try { EntityManager em =

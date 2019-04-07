@@ -139,7 +139,7 @@ public class RoundMediator implements AutoCloseable, Predicate<Command> {
 			addPlayer(initialPlayer);
 		} catch (Throwable th) {
 			logger.catching(th);
-			throw th;
+			throw new RuntimeException(th);
 		} finally {
 			logger.exit();
 		}
@@ -158,6 +158,7 @@ public class RoundMediator implements AutoCloseable, Predicate<Command> {
 
 	@Override
 	public void close() throws Exception {
+		logger.entry();
 		try {
 			if (!close) {
 				close = true;
@@ -174,6 +175,8 @@ public class RoundMediator implements AutoCloseable, Predicate<Command> {
 				if (bettingRound.isPresent()) {
 					bettingRound.get().close();
 				}
+			} else {
+				logger.warn("Already closed.");
 			}
 		} catch (Exception e) {
 			logger.catching(e);
@@ -203,13 +206,16 @@ public class RoundMediator implements AutoCloseable, Predicate<Command> {
 
 		logger.entry(winners);
 		try {
+			StringBuilder sb = new StringBuilder("Game is complete!");
 			for (Entry<PlayerRoundData, Long> entry : winners.entrySet()) {
 				Player player = entry.getKey().get();
 
 				player.addMoney(entry.getValue());
 
 				PlayerService.save(player);
+				sb.append(" Winner: " + player.getIrcName() + ", pot: $" + entry.getValue());
 			}
+			generalMessage.onNext(sb.toString());
 			roundComplete.onNext(winners);
 			close();
 		} catch (Throwable th) {
@@ -251,7 +257,7 @@ public class RoundMediator implements AutoCloseable, Predicate<Command> {
 			} else {
 				if (newPhase == Phase.AWAITING_PLAYERS) {
 
-					future = service.schedule(() -> phaseManager.run(), 30, TimeUnit.SECONDS);
+					future = service.schedule(() -> phaseManager.run(), WodData.joinTimeout, TimeUnit.SECONDS);
 
 					message.append("Awaiting players, type " + WodData.commandChar + CommandType.DEAL.getCommandName()
 							+ " to be dealt into the match.");
@@ -318,6 +324,8 @@ public class RoundMediator implements AutoCloseable, Predicate<Command> {
 
 						generalMessage.onNext(sb.toString());
 					});
+					bettingRoundValue.onPlayerNewTurn()
+							.subscribe((e) -> generalMessage.onNext(e.get().getIrcName() + "'s turn."));
 					bettingRoundValue.onBettingRoundComplete().subscribe(potAmount ->
 					{
 
@@ -484,9 +492,17 @@ public class RoundMediator implements AutoCloseable, Predicate<Command> {
 	}
 
 	private void showPlayer(Player player) {
-		PlayerRoundData data = getPlayerDataByPlayer(player);
+		logger.entry(player);
+		try {
+			PlayerRoundData data = getPlayerDataByPlayer(player);
 
-		data.setShown(true);
+			data.setShown(true);
+		} catch (Throwable th) {
+			logger.catching(th);
+			throw new RuntimeException(th);
+		} finally {
+			logger.exit();
+		}
 	}
 
 	private void peekPlayer(PlayerRoundData data) {
@@ -498,17 +514,25 @@ public class RoundMediator implements AutoCloseable, Predicate<Command> {
 	}
 
 	private void dealAllPlayersIn() {
-		for (PlayerRoundData playerRoundData : playerData) {
-			Optional<Card> optionalCard = deck.get();
-			Optional<Card> optionalCard2 = deck.get();
-			if (optionalCard.isPresent() && optionalCard2.isPresent()) {
-				playerRoundData.deal(optionalCard.get(), optionalCard2.get());
+		logger.entry();
+		try {
+			for (PlayerRoundData playerRoundData : playerData) {
+				Optional<Card> optionalCard = deck.get();
+				Optional<Card> optionalCard2 = deck.get();
+				if (optionalCard.isPresent() && optionalCard2.isPresent()) {
+					playerRoundData.deal(optionalCard.get(), optionalCard2.get());
 
-				peekPlayer(playerRoundData);
-			} else {
-				NoSuchElementException nsee = new NoSuchElementException("Out of cards.");
-				throw new RuntimeException(nsee);
+					peekPlayer(playerRoundData);
+				} else {
+					NoSuchElementException nsee = new NoSuchElementException("Out of cards.");
+					throw new RuntimeException(nsee);
+				}
 			}
+		} catch (Throwable th) {
+			logger.catching(th);
+			throw new RuntimeException(th);
+		} finally {
+			logger.exit();
 		}
 	}
 
@@ -517,18 +541,26 @@ public class RoundMediator implements AutoCloseable, Predicate<Command> {
 	}
 
 	private void addPlayer(Player player) {
-		PlayerService.save(player);
+		logger.entry(player);
+		try {
+			PlayerService.save(player);
 
-		if (!isPlayerParticipating(player)) {
-			// TODO: Should the cards be shown to the player here?
-			PlayerRoundData data = new PlayerRoundData(player);
+			if (!isPlayerParticipating(player)) {
+				// TODO: Should the cards be shown to the player here?
+				PlayerRoundData data = new PlayerRoundData(player);
 
-			playerData.add(data);
+				playerData.add(data);
 
-			generalMessage.onNext(player.getIrcName() + " you have been added to the game.");
-		} else {
+				generalMessage.onNext(player.getIrcName() + " you have been added to the game.");
+			} else {
 
-			generalMessage.onNext(player.getIrcName() + " you are already in the game.");
+				generalMessage.onNext(player.getIrcName() + " you are already in the game.");
+			}
+		} catch (Throwable th) {
+			logger.catching(th);
+			throw new RuntimeException(th);
+		} finally {
+			logger.exit();
 		}
 	}
 
@@ -557,69 +589,80 @@ public class RoundMediator implements AutoCloseable, Predicate<Command> {
 
 	@Override
 	public boolean test(Command command) {
-		CommandType commandType = command.getCommandType();
-		Phase phase = phaseManager.get();
-		Player player = command.getPlayer();
-		PlayerRoundData data = getPlayerDataByPlayer(player);
-		if (phase == Phase.AWAITING_PLAYERS) {
-			// TODO: Make sure the player has money
-			if (commandType == CommandType.DEAL) {
-				if (!(playerData.size() > 12)) {
-					addPlayer(player);
+		logger.entry(command);
+		boolean returnValue = false;
+		try {
+			CommandType commandType = command.getCommandType();
+			Phase phase = phaseManager.get();
+			Player player = command.getPlayer();
+			PlayerRoundData data = getPlayerDataByPlayer(player);
+			if (phase == Phase.AWAITING_PLAYERS) {
+				// TODO: Make sure the player has money
+				if (commandType == CommandType.DEAL) {
+					if (!(playerData.size() > 12)) {
+						addPlayer(player);
+						returnValue = true;
+					} else {
+						generalMessage.onNext(player.getIrcName() + " can't be added, too many players.");
+					}
 				} else {
-					generalMessage.onNext(player.getIrcName() + " can't be added, too many players.");
+					generalMessage.onNext(player.getIrcName() + " command invalid.");
+				}
+			} else if (phase == Phase.SHOWDOWN) {
+				if (commandType == CommandType.SHOW) {
+					StringBuilder sb = new StringBuilder(data.get().getIrcName() + " shows ");
+					for (Card card : data.getCards()) {
+						sb.append(card);
+					}
+					generalMessage.onNext(sb.toString());
+					showPlayer(player);
+					if (getActivePlayers().isEmpty()) {
+						showdown();
+					}
+					returnValue = true;
+				} else if (commandType == CommandType.FOLD) {
+					foldPlayer(player);
+
+					if (getActivePlayers().isEmpty()) {
+						showdown();
+					}
+					returnValue = true;
+				} else {
+					// TODO: Throw exception here?
+					generalMessage.onNext(player.getIrcName() + " can't process this command here.");
 				}
 			} else {
-				generalMessage.onNext(player.getIrcName() + " command invalid.");
-			}
-		} else if (phase == Phase.SHOWDOWN) {
-			if (commandType == CommandType.SHOW) {
-				StringBuilder sb = new StringBuilder(data.get().getIrcName() + " shows ");
-				for (Card card : data.getCards()) {
-					sb.append(card);
+				if (commandType == CommandType.FOLD) {
+					foldPlayer(player);
+					returnValue = true;
 				}
-				generalMessage.onNext(sb.toString());
-				showPlayer(player);
-				if (getActivePlayers().isEmpty()) {
-					showdown();
-				}
-			} else if (commandType == CommandType.FOLD) {
-				foldPlayer(player);
+				if (phase.isBetPhase()) {
+					if (commandType.isBetCommand()) {
+						BettingRound bettingRoundValue = bettingRound.get();
 
-				if (getActivePlayers().isEmpty()) {
-					showdown();
+						bettingRoundValue.handleCommand(command);
+					} else {
+						// TODO: handle non bet commands
+					}
+					returnValue = true;
 				}
-				return true;
-			} else {
-				// TODO: Throw exception here?
-				generalMessage.onNext(player.getIrcName() + " can't process this command here.");
-			}
-		} else {
-			if (commandType == CommandType.FOLD) {
-				foldPlayer(player);
-				return true;
-			}
-			if (phase.isBetPhase()) {
-				if (commandType.isBetCommand()) {
-					BettingRound bettingRoundValue = bettingRound.get();
+				/*
+				 * else if (phase.isBetPhase() || phase == Phase.SHOWDOWN) { if
+				 * (phase.isBetPhase()) { if (player.equals(obj)) switch (commandType) {
+				 * 
+				 * }
+				 * 
+				 * } }
+				 */
 
-					bettingRoundValue.handleCommand(command);
-				} else {
-					// TODO: handle non bet commands
-				}
-				return true;
 			}
-			/*
-			 * else if (phase.isBetPhase() || phase == Phase.SHOWDOWN) { if
-			 * (phase.isBetPhase()) { if (player.equals(obj)) switch (commandType) {
-			 * 
-			 * }
-			 * 
-			 * } }
-			 */
-
+		} catch (Throwable th) {
+			logger.catching(th);
+			throw new RuntimeException(th);
+		} finally {
+			logger.exit(returnValue);
 		}
-		return false;
+		return returnValue;
 
 	}
 }

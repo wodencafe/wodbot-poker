@@ -36,47 +36,61 @@ public class WodBotListener extends ListenerAdapter {
 	}
 
 	public void setBot(PircBotX bot) {
+		logger.entry(bot);
 		this.bot = bot;
+		logger.exit();
 	}
 
 	public WodBotListener(PircBotX bot) {
+		logger.entry(bot);
 		this.bot = bot;
+		logger.exit();
 	}
 
 	private void wireUpRound(RoundMediator roundMediator, String channel) {
-		roundMediator.onGeneralMessage().subscribe(message -> bot.sendIRC().message(channel, message));
-		roundMediator.onPlayerMessage().delay(100, TimeUnit.MILLISECONDS).subscribe(message ->
-		{
-			Player player = message.getKey();
-			User user = round.get().getValue().stream().filter(x -> x.getNick().equals(player.getIrcName())).findAny()
-					.orElse(null);
-			try {
-				if (user != null) {
-					user.send().notice(message.getValue());
+		logger.entry(roundMediator, channel);
+		try {
+			roundMediator.onGeneralMessage().subscribe(message -> bot.sendIRC().message(channel, message));
+			roundMediator.onPlayerMessage().delay(100, TimeUnit.MILLISECONDS).subscribe(message ->
+			{
+				Player player = message.getKey();
+				User user = round.get().getValue().stream().filter(x -> x.getNick().equals(player.getIrcName()))
+						.findAny().orElse(null);
+				try {
+					if (user != null) {
+						user.send().notice(message.getValue());
+					}
+				} catch (Throwable th) {
+					logger.catching(th);
+					logger.error("Error with sending a private message to user " + player.getIrcName()
+							+ System.lineSeparator() + th.getMessage(), th);
+					throw new RuntimeException(th);
 				}
-			} catch (Throwable th) {
-				logger.error("Error with sending a private message to user " + player.getIrcName()
-						+ System.lineSeparator() + th.getMessage(), th);
-				throw new RuntimeException(th);
-			}
-		}, error ->
-		{
-			logger.error("Error with Player Message", error);
-		});
-		roundMediator.onRoundComplete().subscribe(event ->
-		{
-			StringBuilder sb = new StringBuilder("Round complete.");
-			Entry<PlayerRoundData, Long> entry = event.entrySet().iterator().next();
-			if (event.size() > 0) {
-				sb.append(" Winner is " + entry.getKey().get().getIrcName() + ", winning $"
-						+ entry.getValue().toString());
-			}
-		});
+			}, error ->
+			{
+				logger.catching(error);
+				logger.error("Error with Player Message", error);
+			});
+			roundMediator.onRoundComplete().subscribe(event ->
+			{
+				StringBuilder sb = new StringBuilder("Round complete.");
+				Entry<PlayerRoundData, Long> entry = event.entrySet().iterator().next();
+				if (event.size() > 0) {
+					sb.append(" Winner is " + entry.getKey().get().getIrcName() + ", winning $"
+							+ entry.getValue().toString());
+				}
+				round = Optional.empty();
+			});
+		} catch (Throwable th) {
+			logger.catching(th);
+		} finally {
+			logger.exit();
+		}
 	}
 
 	@Override
 	public void onGenericMessage(GenericMessageEvent genericEvent) {
-
+		logger.entry(genericEvent);
 		MessageEvent event = (MessageEvent) genericEvent;
 		try {
 			if (event.getMessage().startsWith(WodData.commandChar + "startgame")) {
@@ -156,38 +170,60 @@ public class WodBotListener extends ListenerAdapter {
 			logger.error("Error processing message.", e);
 			event.respond("Unexpected error occurred: " + e.getMessage());
 			throw new RuntimeException(e);
+		} finally {
+			logger.exit();
 		}
 
 	}
 
 	private Command getCommand(String message, Player player) {
-		String[] messageSplit;
-		long value = -1;
-		message = message.substring(1);
-		if (message.contains(" ")) {
-			messageSplit = message.split(" ");
-			message = messageSplit[0];
-			if (messageSplit.length > 1) {
-				try {
-					value = Integer.parseInt(messageSplit[1]);
-				} catch (Throwable th) {
-					logger.debug("Can't parse integer.", th);
+		logger.entry(message, player);
+		Command returnValue = null;
+		try {
+			String[] messageSplit;
+			long value = -1;
+			message = message.substring(1);
+			if (message.contains(" ")) {
+				messageSplit = message.split(" ");
+				message = messageSplit[0];
+				if (messageSplit.length > 1) {
+					try {
+						value = Integer.parseInt(messageSplit[1]);
+					} catch (Throwable th) {
+						logger.debug("Can't parse integer.", th);
+					}
 				}
 			}
-		}
-		if (value > -1) {
-			return new Command(CommandType.get(message), player);
-		} else {
+			if (value > -1) {
+				returnValue = new Command(CommandType.get(message), value, player);
+			} else {
 
-			return new Command(CommandType.get(message), value, player);
+				returnValue = new Command(CommandType.get(message), player);
+			}
+		} catch (Throwable th) {
+			logger.catching(th);
+			throw new RuntimeException(th);
+		} finally {
+			logger.exit(returnValue);
 		}
+		return returnValue;
 	}
 
 	private boolean isLegitMessage(String message) {
-		if (message.contains(" ")) {
-			message = message.split(" ")[0];
+		logger.entry(message);
+		boolean returnValue = false;
+		try {
+			if (message.contains(" ")) {
+				message = message.split(" ")[0];
+			}
+			returnValue = CommandType.get(message.substring(1)) != null;
+		} catch (Throwable th) {
+			logger.catching(th);
+			throw new RuntimeException(th);
+		} finally {
+			logger.exit(returnValue);
 		}
-		return CommandType.get(message.substring(1)) != null;
+		return returnValue;
 	}
 
 }

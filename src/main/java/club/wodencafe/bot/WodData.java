@@ -6,6 +6,7 @@ public class WodData {
 	public static char commandChar = '!';
 
 	public static int betTimeout = 30;
+	public static int joinTimeout = 30;
 	public static String databaseName = "poker-test";
 
 	public WodData() {

@@ -2,12 +2,34 @@ package club.wodencafe.bot;
 
 import org.pircbotx.Configuration;
 import org.pircbotx.PircBotX;
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
+import ch.qos.logback.core.ConsoleAppender;
 
 public class WodBotClass implements Runnable {
 	public static void setLoggingLevel(ch.qos.logback.classic.Level level) {
 		ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory
 				.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
 		root.setLevel(level);
+
+		LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
+
+		PatternLayoutEncoder ple = new PatternLayoutEncoder();
+		ple.setPattern("%date %level [%thread] %logger{10} [%file:%line] %msg%n%caller{10}");
+		ple.setContext(lc);
+		ple.start();
+
+		ConsoleAppender logConsoleAppender = new ConsoleAppender();
+		logConsoleAppender.setContext(lc);
+		logConsoleAppender.setName("console");
+		logConsoleAppender.setEncoder(ple);
+		logConsoleAppender.start();
+
+		root.setAdditive(false);
+		root.addAppender(logConsoleAppender);
+
 	}
 
 	public static void main(String[] args) throws Exception {
