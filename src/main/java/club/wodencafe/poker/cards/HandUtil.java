@@ -12,26 +12,29 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
+import org.slf4j.ext.XLogger;
+import org.slf4j.ext.XLoggerFactory;
+
 import club.wodencafe.poker.cards.hands.Hand;
 
 public class HandUtil {
 
+	private static final XLogger logger = XLoggerFactory.getXLogger(HandUtil.class);
 	private static Collection<HandType> handTypes = Arrays.asList(HandType.values()).stream()
 			.sorted(Collections.reverseOrder()).collect(Collectors.toList());
 
 	public static Hand getHand(Collection<Card> cards) {
-
-		List<Card> cardValues = new ArrayList<>(getCardsSortedAceHigh(cards));
-
-		cards.stream()
-			.filter(card -> card.getSuit() == Suit.JOKER)
-			.filter(card -> !cardValues.contains(card))
-			.forEach(cardValues::add);
-		
-		List<Card> handCards = new ArrayList<>();
+		logger.entry(cards);
 		Hand hand = null;
-		for (HandType handType : handTypes) {
-			switch (handType) {
+		try {
+			List<Card> cardValues = new ArrayList<>(getCardsSortedAceHigh(cards));
+
+			cards.stream().filter(card -> card.getSuit() == Suit.JOKER).filter(card -> !cardValues.contains(card))
+					.forEach(cardValues::add);
+
+			List<Card> handCards = new ArrayList<>();
+			for (HandType handType : handTypes) {
+				switch (handType) {
 				case ROYAL_FLUSH: {
 					handCards.addAll(getRoyalFlush(cardValues));
 				}
@@ -67,22 +70,29 @@ public class HandUtil {
 				case PAIR: {
 					handCards.addAll(getPair(cardValues));
 				}
-				break;
-			}
-			if (handCards.size() > 0) {
-				if (handCards.size() < 5) {
-					cardValues.removeAll(handCards);
-
-					cardValues.stream().limit(5 - handCards.size()).forEach(handCards::add);
-
+					break;
 				}
-				hand = new Hand(handCards, handType);
-				break;
+				if (handCards.size() > 0) {
+					if (handCards.size() < 5) {
+						cardValues.removeAll(handCards);
+
+						cardValues.stream().limit(5 - handCards.size()).forEach(handCards::add);
+
+					}
+					hand = new Hand(handCards, handType);
+					break;
+				}
 			}
-		}
-		if (hand == null) {
-			handCards = cardValues.stream().limit(5).collect(Collectors.toList());
-			hand = new Hand(handCards, HandType.HIGH_CARD);
+			if (hand == null) {
+				handCards = cardValues.stream().limit(5).collect(Collectors.toList());
+				hand = new Hand(handCards, HandType.HIGH_CARD);
+			}
+		} catch (Throwable th) {
+			RuntimeException e = new RuntimeException(th);
+			logger.throwing(e);
+			throw e;
+		} finally {
+			logger.exit(hand);
 		}
 		return hand;
 	}
@@ -265,13 +275,13 @@ public class HandUtil {
 
 	public static List<Card> getCardsSortedAceHigh(Collection<Card> cards) {
 
-		
 		List<Card> cardValuesList = new ArrayList<>(cards);
 		List<Runnable> runnables = new ArrayList<>();
 		Collections.sort(cardValuesList);
 		for (Card card : cardValuesList) {
 			if (card.getValue() == 1) {
-				runnables.add(() -> {
+				runnables.add(() ->
+				{
 					cardValuesList.remove(card);
 					cardValuesList.add(0, card);
 				});
@@ -304,7 +314,7 @@ public class HandUtil {
 		 */
 
 		Collection<Card> jokers = getAndRemoveJokers(cards);
-		
+
 		List<Card> cardsNew = new ArrayList<>(getCardsSortedAceHigh(cards));
 
 		List<Card> topFiveCards = new ArrayList<>();

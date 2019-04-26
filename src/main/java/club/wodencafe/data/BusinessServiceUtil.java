@@ -2,12 +2,14 @@ package club.wodencafe.data;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.EntityTransaction;
+import javax.persistence.OptimisticLockException;
 import javax.persistence.Persistence;
 import javax.persistence.TypedQuery;
 import javax.persistence.criteria.CriteriaBuilder;
@@ -22,6 +24,8 @@ import org.slf4j.ext.XLoggerFactory;
 import club.wodencafe.bot.WodData;
 
 public class BusinessServiceUtil {
+
+	private static final ReentrantLock lock = new ReentrantLock();
 	private static final XLogger logger = XLoggerFactory.getXLogger(BusinessServiceUtil.class);
 
 	private static class Saveable<T extends BusinessEntity> implements Predicate<T> {
@@ -39,17 +43,35 @@ public class BusinessServiceUtil {
 			logger.entry(arg0);
 			boolean returnValue = false;
 			try {
+				lock.lock();
 				EntityManager em = emf.createEntityManager();
-
 				T foundValue;
 				if (arg0.getId() != null && arg0.getId() > -1) {
 					foundValue = findWithJPA(arg0.getId(), clazz);
+					logger.debug("Found value: " + foundValue);
 					em.detach(foundValue);
+					Long version = foundValue.getVersion();
 					MiscUtil.copyMatchingFields(arg0, foundValue);
-
+					foundValue.setVersion(version);
 					em.getTransaction().begin();
-					em.merge(foundValue);
-					em.getTransaction().commit();
+					// logger.debug(arg0 + " lock mode is: " + em.getLockMode(arg0));
+					// logger.debug(foundValue + " lock mode is: " + em.getLockMode(foundValue));
+					try {
+						logger.debug("Attempting to merge " + foundValue);
+
+						em.merge(foundValue);
+						em.getTransaction().commit();
+					} catch (OptimisticLockException oe) {
+						em.getTransaction().rollback();
+						RuntimeException e = new RuntimeException("Merge failed for " + foundValue, oe);
+						logger.throwing(e);
+						throw e;
+					} catch (Throwable th) {
+						em.getTransaction().rollback();
+						RuntimeException e = new RuntimeException("Merge failed for " + foundValue, th);
+						logger.throwing(e);
+						throw e;
+					}
 				} else {
 
 					em.getTransaction().begin();
@@ -62,6 +84,7 @@ public class BusinessServiceUtil {
 				logger.catching(th);
 				throw new RuntimeException(th);
 			} finally {
+				lock.unlock();
 				logger.exit(returnValue);
 			}
 		}
@@ -87,7 +110,7 @@ public class BusinessServiceUtil {
 
 	private static EntityManager getEntityManager() {
 		logger.entry();
-
+		lock.lock();
 		EntityManager entityManager = null;
 		try {
 			String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
@@ -104,6 +127,7 @@ public class BusinessServiceUtil {
 			logger.catching(th);
 			throw new RuntimeException(th);
 		} finally {
+			lock.unlock();
 			logger.exit(entityManager);
 		}
 		return entityManager;
@@ -118,6 +142,7 @@ public class BusinessServiceUtil {
 
 	public static <R> R getCustomResult(Function<EntityManager, R> function) {
 		logger.entry(function);
+		lock.lock();
 		R returnValue = null;
 		try {
 			String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
@@ -126,9 +151,10 @@ public class BusinessServiceUtil {
 
 			returnValue = function.apply(getEntityManager());
 		} catch (Throwable th) {
-			logger.catching(th);
+			logger.throwing(th);
 			throw new RuntimeException(th);
 		}
+		lock.unlock();
 		logger.exit(returnValue);
 		return returnValue;
 	}
@@ -141,17 +167,33 @@ public class BusinessServiceUtil {
 
 		// logger.trace(methodName);
 
-		EntityManager em = getEntityManager();
-		CriteriaBuilder cb = em.getCriteriaBuilder();
-		CriteriaQuery<T> cq = cb.createQuery(clazz);
-		Root<T> rootEntry = cq.from(clazz);
-		CriteriaQuery<T> all = cq.select(rootEntry);
-		Triple<CriteriaBuilder, CriteriaQuery<T>, Root<T>> triple = new ImmutableTriple<>(cb, all, rootEntry);
-		for (Function<Triple<CriteriaBuilder, CriteriaQuery<T>, Root<T>>, CriteriaQuery<T>> function : functions) {
-			all = function.apply(triple);
+		logger.entry(clazz, functions);
+		lock.lock();
+		List<T> results = null;
+		try {
+			EntityManager em = getEntityManager();
+			CriteriaBuilder cb = em.getCriteriaBuilder();
+			CriteriaQuery<T> cq = cb.createQuery(clazz);
+			Root<T> rootEntry = cq.from(clazz);
+			CriteriaQuery<T> all = cq.select(rootEntry);
+			Triple<CriteriaBuilder, CriteriaQuery<T>, Root<T>> triple = new ImmutableTriple<>(cb, all, rootEntry);
+			for (Function<Triple<CriteriaBuilder, CriteriaQuery<T>, Root<T>>, CriteriaQuery<T>> function : functions) {
+				all = function.apply(triple);
+			}
+			TypedQuery<T> allQuery = em.createQuery(all);
+			results = allQuery.getResultList();
+			for (T result : results) {
+				em.detach(result);
+			}
+		} catch (Throwable th) {
+			logger.throwing(th);
+			throw new RuntimeException(th);
+		} finally {
+			lock.unlock();
+			logger.exit(results);
+
 		}
-		TypedQuery<T> allQuery = em.createQuery(all);
-		return allQuery.getResultList();
+		return results;
 	}
 
 	public static <T extends BusinessEntity> List<T> findWithJPA(
@@ -161,14 +203,17 @@ public class BusinessServiceUtil {
 
 	public static <T extends BusinessEntity> T findWithJPA(Long id, Class<T> clazz) {
 		logger.entry(id, clazz);
+		lock.lock();
 		T returnValue = null;
 		try {
 			EntityManager em = getEntityManager();
 			returnValue = em.find(clazz, id);
+			em.detach(returnValue);
 		} catch (Throwable th) {
 			logger.catching(th);
 			throw new RuntimeException(th);
 		} finally {
+			lock.unlock();
 			logger.exit(returnValue);
 		}
 		return returnValue;
@@ -176,6 +221,7 @@ public class BusinessServiceUtil {
 
 	private static <T extends BusinessEntity> boolean isDetached(T entity, Class<T> clazz) {
 		logger.entry(entity, clazz);
+		lock.lock();
 		boolean returnValue = false;
 		try {
 			EntityManager em = getEntityManager();
@@ -187,6 +233,7 @@ public class BusinessServiceUtil {
 			logger.catching(th);
 			throw new RuntimeException(th);
 		} finally {
+			lock.unlock();
 			logger.exit(returnValue);
 		}
 		return returnValue;
@@ -194,6 +241,7 @@ public class BusinessServiceUtil {
 
 	public static <T extends BusinessEntity> boolean deleteWithJPA(T entity, Class<T> clazz) {
 		logger.entry(entity, clazz);
+		lock.lock();
 		boolean success = false;
 		try {
 			EntityManager em = getEntityManager();
@@ -216,10 +264,12 @@ public class BusinessServiceUtil {
 				t.rollback();
 			em.close();
 		} catch (Throwable th) {
-			logger.catching(th);
+			logger.throwing(th);
 			throw new RuntimeException(th);
+		} finally {
+			lock.unlock();
+			logger.exit(success);
 		}
-		logger.exit(success);
 		return success;
 
 	}
@@ -295,6 +345,7 @@ public class BusinessServiceUtil {
 		 * System.err.println("BusinessServiceUtil.saveWithJPA unable to save."); }
 		 * em.close(); return success;
 		 */
+		lock.lock();
 		boolean returnValue = false;
 		try {
 			Saveable<T> saveable = new Saveable<T>(clazz);
@@ -304,6 +355,7 @@ public class BusinessServiceUtil {
 			logger.catching(th);
 			throw new RuntimeException(th);
 		} finally {
+			lock.unlock();
 			logger.exit(returnValue);
 		}
 		return returnValue;
@@ -343,6 +395,7 @@ public class BusinessServiceUtil {
 
 	public static <T> long count(Class<T> clazz) {
 		logger.entry(clazz);
+		lock.lock();
 		long count = -1;
 		try {
 			EntityManager entityManager = getEntityManager();
@@ -353,9 +406,10 @@ public class BusinessServiceUtil {
 			// qb.where(qb.eq(cq.get("age"), 45));
 			count = entityManager.createQuery(cq).getSingleResult();
 		} catch (Throwable th) {
-			logger.catching(th);
+			logger.throwing(th);
 			throw new RuntimeException(th);
 		} finally {
+			lock.unlock();
 			logger.exit(count);
 		}
 		return count;
@@ -363,18 +417,23 @@ public class BusinessServiceUtil {
 	}
 
 	public static <T extends BusinessEntity> void deleteAllWithJPA(Class<T> clazz) {
-		String methodName = Thread.currentThread().getStackTrace()[1].getMethodName();
+		logger.entry(clazz);
+		lock.lock();
+		try {
 
-		logger.trace(methodName);
-
-		for (T entity : findAllWithJPA(clazz)) {
-			deleteWithJPA(entity, clazz);
+			for (T entity : findAllWithJPA(clazz)) {
+				deleteWithJPA(entity, clazz);
+			}
+		} finally {
+			lock.unlock();
+			logger.exit();
 		}
 	}
 
 	public static <T extends BusinessEntity> void refreshWithJPA(T entity, Class<T> clazz,
 			Optional<EntityManager> oem) {
 		logger.entry(entity, clazz, oem);
+		lock.lock();
 		try {
 			EntityManager em = oem.isPresent() ? oem.get() : getEntityManager();
 			T entityNew = findWithJPA(entity.getId(), clazz);
@@ -393,6 +452,7 @@ public class BusinessServiceUtil {
 			logger.catching(th);
 			throw new RuntimeException(th);
 		} finally {
+			lock.unlock();
 			logger.exit();
 		}
 

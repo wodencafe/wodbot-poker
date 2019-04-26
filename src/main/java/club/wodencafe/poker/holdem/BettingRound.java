@@ -107,11 +107,13 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 	}
 
 	public BettingRound(List<PlayerRoundData> players, int betTimeout) {
+		logger.entry(players, betTimeout);
 		this.players = players;
 
 		this.betTimeout = betTimeout;
 
 		potManager = new PotManager(this);
+		logger.exit(this);
 	}
 
 	public BettingRound(List<PlayerRoundData> players) {
@@ -144,19 +146,21 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 
 			logger.info("Get all the previous commands without folds.");
 			List<Command> previousCommandsWithoutFolds = getPreviousCommandsWithoutFolds();
-			logger.info("Got all the previous commands without folds: ", System.lineSeparator(),
-					previousCommandsWithoutFolds);
+			logger.info("Got all the previous commands without folds: " + System.lineSeparator()
+					+ previousCommandsWithoutFolds);
 			List<Player> playersWithoutFolds = players.stream().filter(x -> !x.isFolded()).map(x -> x.get())
 					.collect(Collectors.toList());
 
+			logger.debug("playersWithoutFolds: " + playersWithoutFolds);
+
 			if (previousCommandsWithoutFolds.isEmpty()) {
+				Player currentPlayer = players.iterator().next().get();
+				logger.debug("No previous commands, current player is " + currentPlayer.getIrcName());
 				entry = new AbstractMap.SimpleEntry<>(players.iterator().next().get(), null);
 			} else {
-
+				// This logic is wrong
 				Player previousPlayer = previousCommandsWithoutFolds.get(previousCommandsWithoutFolds.size() - 1)
 						.getPlayer();
-
-				logger.debug("It appears the previous player is", previousPlayer);
 
 				if (isRoundComplete()) {
 					logger.debug("Round is complete. There is no current player.");
@@ -165,16 +169,22 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 					logger.debug("Round is not complete.");
 					Player currentPlayer;
 
-					int previousPlayerIndex = playersWithoutFolds.indexOf(previousPlayer);
+					int previousPlayerIndex = playersWithoutFolds.stream()
+							.filter(x -> x.getIrcName().equals(previousPlayer.getIrcName()))
+
+							.map(x -> playersWithoutFolds.indexOf(x)).findFirst().orElseGet(null);
 
 					// If this is the last player in the list
 					if (previousPlayerIndex == (playersWithoutFolds.size() - 1)) {
+						logger.debug("Setting current player to first entry.");
 						currentPlayer = playersWithoutFolds.get(0);
 					} else {
+						logger.debug("Setting current player to previous index + 1.");
 						currentPlayer = playersWithoutFolds.get(previousPlayerIndex + 1);
 					}
 
-					logger.debug("It appears the current player is", currentPlayer);
+					logger.debug("It appears the previous player is " + previousPlayer.getIrcName(), previousPlayer);
+					logger.debug("It appears the current player is " + currentPlayer.getIrcName(), currentPlayer);
 
 					entry = new AbstractMap.SimpleEntry<>(currentPlayer, previousPlayer);
 				}
@@ -192,9 +202,8 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 
 		logger.entry(command);
 		try {
-			boolean found = false;
-			if (Objects.equals(command.getPlayer(), getCurrentAndPreviousPlayer().getKey())) {
-				found = true;
+			if (Objects.nonNull(getCurrentAndPreviousPlayer().getKey()) && Objects
+					.equals(command.getPlayer().getIrcName(), getCurrentAndPreviousPlayer().getKey().getIrcName())) {
 				CommandType commandType = command.getCommandType();
 
 				logger.debug("commandType is: " + commandType.toString());
@@ -219,7 +228,9 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 				} else {
 					Command previousCommand = previousCommandsWithoutFolds.get(previousCommandsWithoutFolds.size() - 1);
 
+					logger.debug("Previous command is: " + previousCommand, previousCommand);
 					CommandType previousCommandType = previousCommand.getCommandType();
+					logger.debug("Previous command type is: " + previousCommandType, previousCommandType);
 
 					switch (previousCommandType) {
 					case CHECK: {
@@ -251,13 +262,19 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 						break;
 					}
 				}
-			}
-			if (!found) {
-				logger.error("Can't find player for command.");
-				throw new NoSuchElementException();
+			} else {
+				String message = "Can't find player for command.";
+				message = message + System.lineSeparator() + "Command Player: " + command.getPlayer().getIrcName();
+				message = message + System.lineSeparator() + "Current Player: "
+						+ (getCurrentAndPreviousPlayer().getKey() == null ? "[null]"
+								: getCurrentAndPreviousPlayer().getKey().getIrcName());
+				NoSuchElementException e = new NoSuchElementException(message);
+				logger.error(message, e);
+				logger.throwing(e);
+				throw e;
 			}
 		} catch (Throwable th) {
-			logger.catching(th);
+			logger.throwing(th);
 			throw new RuntimeException(th);
 		} finally {
 			logger.exit();
@@ -274,8 +291,9 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 				newTurn();
 			}
 		} catch (Throwable th) {
-			logger.catching(th);
-			throw new RuntimeException(th);
+			RuntimeException e = new RuntimeException(th);
+			logger.throwing(e);
+			throw e;
 		} finally {
 			logger.exit();
 		}
@@ -332,7 +350,7 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 		try {
 			for (PlayerRoundData data : players) {
 				logger.trace("Comparing " + data.get() + " with " + player);
-				if (data.get() == player) {
+				if (Objects.equals(data.get().getIrcName(), player.getIrcName())) {
 					logger.trace("Match between " + data.get() + " and " + player);
 					returnData = data;
 					break;
@@ -353,10 +371,20 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 	}
 
 	private PlayerRoundData getPlayerRoundData(Player player) {
-		logger.trace("getPlayerRoundData(" + player.toString() + ")");
-		PlayerRoundData data = getCurrentPlayerRoundData(player);
-		logger.trace("getPlayerRoundData(" + player.toString() + ") returning " + data);
-		return data;
+		logger.entry(player);
+		PlayerRoundData data = null;
+		try {
+			logger.trace("getPlayerRoundData(" + player.toString() + ")");
+			data = getCurrentPlayerRoundData(player);
+			logger.trace("getPlayerRoundData(" + player.toString() + ") returning " + data);
+			return data;
+		} catch (Throwable th) {
+			RuntimeException e = new RuntimeException(th);
+			logger.throwing(e);
+			throw e;
+		} finally {
+			logger.exit(data);
+		}
 	}
 
 	private void fold(Player player) {
@@ -472,7 +500,12 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 	}
 
 	public List<PlayerRoundData> getPlayers() {
-		return players;
+		logger.entry();
+		try {
+			return players;
+		} finally {
+			logger.exit(players);
+		}
 	}
 
 	public List<Player> getActivePlayers() {
@@ -481,6 +514,8 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 		try {
 			activePlayers = players.stream().filter(x -> !x.isFolded()).filter(x -> !x.isShown()).map(x -> x.get())
 					.collect(Collectors.toList());
+
+			logger.debug("Active players: " + activePlayers, activePlayers);
 		} catch (Throwable th) {
 			logger.catching(th);
 			throw new RuntimeException(th);
@@ -497,7 +532,7 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 			players = previousCommands.stream().map(x -> x.getPlayer()).collect(Collectors.toList());
 
 		} catch (Throwable th) {
-			logger.catching(th);
+			logger.throwing(th);
 			throw new RuntimeException(th);
 		} finally {
 			logger.exit(players);
@@ -512,7 +547,7 @@ public class BettingRound extends AbstractIdleService implements AutoCloseable {
 			returnValue = ((getPlayersFromCommands().containsAll(getActivePlayers()) && potManager.isPotSatisfied())
 					|| getActivePlayers().size() == 1);
 		} catch (Throwable th) {
-			logger.catching(th);
+			logger.throwing(th);
 			throw new RuntimeException(th);
 		} finally {
 			logger.exit(returnValue);

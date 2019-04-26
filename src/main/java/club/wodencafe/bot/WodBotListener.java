@@ -31,6 +31,10 @@ public class WodBotListener extends ListenerAdapter {
 
 	private Optional<Entry<RoundMediator, Collection<User>>> round = Optional.empty();
 
+	public RoundMediator getRound() {
+		return round.get().getKey();
+	}
+
 	public WodBotListener() {
 		DatabaseService.SINGLETON.isRunning();
 	}
@@ -82,7 +86,8 @@ public class WodBotListener extends ListenerAdapter {
 				round = Optional.empty();
 			});
 		} catch (Throwable th) {
-			logger.catching(th);
+			logger.throwing(th);
+			throw th;
 		} finally {
 			logger.exit();
 		}
@@ -106,6 +111,8 @@ public class WodBotListener extends ListenerAdapter {
 						player.setMoney(100L);
 						PlayerService.save(player);
 						logger.debug("Saving new player " + player);
+					} else {
+						logger.debug("Was able to locate player " + player);
 					}
 
 					RoundMediator roundMediator = new RoundMediator(player);
@@ -166,10 +173,11 @@ public class WodBotListener extends ListenerAdapter {
 				}
 			}
 
-		} catch (Throwable e) {
+		} catch (Throwable th) {
+			event.respond("Unexpected error occurred: " + th.getMessage());
+			RuntimeException e = new RuntimeException(th);
 			logger.error("Error processing message.", e);
-			event.respond("Unexpected error occurred: " + e.getMessage());
-			throw new RuntimeException(e);
+			logger.throwing(e);
 		} finally {
 			logger.exit();
 		}
@@ -200,13 +208,14 @@ public class WodBotListener extends ListenerAdapter {
 
 				returnValue = new Command(CommandType.get(message), player);
 			}
+			return returnValue;
 		} catch (Throwable th) {
-			logger.catching(th);
-			throw new RuntimeException(th);
+			RuntimeException e = new RuntimeException(th);
+			logger.catching(e);
+			throw e;
 		} finally {
 			logger.exit(returnValue);
 		}
-		return returnValue;
 	}
 
 	private boolean isLegitMessage(String message) {
@@ -217,13 +226,14 @@ public class WodBotListener extends ListenerAdapter {
 				message = message.split(" ")[0];
 			}
 			returnValue = CommandType.get(message.substring(1)) != null;
+			return returnValue;
 		} catch (Throwable th) {
-			logger.catching(th);
-			throw new RuntimeException(th);
+			RuntimeException e = new RuntimeException(th);
+			logger.throwing(e);
+			throw e;
 		} finally {
 			logger.exit(returnValue);
 		}
-		return returnValue;
 	}
 
 }
